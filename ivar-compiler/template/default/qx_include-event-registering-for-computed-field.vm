@@ -1,0 +1,118 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+###############################
+####### afterInitData_qxsimplefield
+###############################
+#macro (eventRegisteringForCoputedField $fields)
+            //
+            // Event registering for calculated field if any :
+            //
+
+## This loop is for the method that will compute calculated field
+#foreach ($field in ${fields})
+#if (${field.isCalculated()})
+#if(${field.isConstantRule()})
+
+            // Caqe of a constant rule.
+            try {
+                this._N_${field.getKeyname()}.setValue(this.compute${field.getKeynameFirstCapitalized()}());
+            } catch (err) {
+                this.debug("[${screen.getKeyname()}] Cannot compute ${field.getKeyname()}. It failed when call compute${field.getKeynameFirstCapitalized()}() : " + err);    
+            }
+#else
+#foreach ($onefield in ${fields})
+#foreach ($dependency in ${onefield.getDependencies()})
+#if (${dependency.getKeyname().equals(${field.getKeyname()})})
+            // ${onefield.getKeyname()} is a needed dependency to compute ${field.getKeyname()}.
+#if (!${onefield.isDataset()} && !${onefield.isConstantRule()} && !${onefield.hasDefaultValue()})
+            this._N_${onefield.getKeynameFirstCapitalized()}DependencyFor${field.getKeynameFirstCapitalized()}HasFiredOnce = false;
+#else
+            // but ${onefield.getKeyname()} is a DataSet or a constant rule or has a default value.
+            // dataset : ${onefield.isDataset()} 
+            // constant rule : ${onefield.isConstantRule()}
+            // default value : ${onefield.hasDefaultValue()}
+    
+#end## Keep the blank line just before
+#if(${onefield.isCollection()})
+#if(!${onefield.hasSmallSelector()})
+            this._N_${onefield.getKeyname()}TableModel.addListener("dataChanged", function(e) {
+#else
+            this._N_${onefield.getKeyname()}.addListener("changeSelection", function(e) {
+#end
+#else
+#if(!${onefield.isBuiltIn()})
+#if(!${onefield.hasSmallSelector()})
+            this._N_${onefield.getKeyname()}TableModel.addListener("dataChanged", function(e) {
+#else
+            this._N_${onefield.getKeyname()}.addListener("changeSelection", function(e) {
+#end
+#else
+            this._N_${onefield.getKeyname()}.addListener("changeValue", function(e) {
+#end## end is not built-in
+#end
+#if($compiler.isDebug())
+                this.debug("[EVENT] ${onefield.getKeyname()} has changed ! Recompute ${field.getKeyname()}.");
+#end
+#if (!${onefield.isDataset()} && !${onefield.isConstantRule()} && !${onefield.hasDefaultValue()})
+                this._N_${onefield.getKeynameFirstCapitalized()}DependencyFor${field.getKeynameFirstCapitalized()}HasFiredOnce = true;
+#end
+#set($testRecomputeNeeded = "false")
+## This loop or block is here to compute in the template if it is needed to check in js that the field need to be recompute.
+## If the only dependency to check is myself, then always recompute. That test is needed in js only when at least one other
+## dependency should be fired to allow a recomppute.
+#foreach ($onefield2 in ${fields})
+#if (!$onefield2.isDataset() && !$onefield2.getKeyname().equals($onefield.getKeyname()))
+#foreach ($dependency2 in ${onefield2.getDependencies()})
+#if (${dependency2.getKeyname().equals(${field.getKeyname()})})
+#set($testRecomputeNeeded = "true")
+#end#end#end#end
+#if($testRecomputeNeeded.equals("true"))
+
+                var goForRecompute = true;
+#foreach ($onefield2 in ${fields})
+#if (!$onefield2.isDataset() && !$onefield2.getKeyname().equals($onefield.getKeyname()))
+#foreach ($dependency2 in ${onefield2.getDependencies()})
+#if (${dependency2.getKeyname().equals(${field.getKeyname()})})
+#if(!${onefield2.isDataset()} && !${onefield2.isConstantRule()} && !${onefield2.hasDefaultValue()})
+                goForRecompute = goForRecompute && this._N_${onefield2.getKeynameFirstCapitalized()}DependencyFor${field.getKeynameFirstCapitalized()}HasFiredOnce;
+#end
+#end#end#end#end
+
+                if (goForRecompute) {
+                    try {
+                        this._N_${field.getKeyname()}.setValue(this.compute${field.getKeynameFirstCapitalized()}());
+                    } catch (err) {
+                        this.debug("[${screen.getKeyname()}] Cannot compute ${field.getKeyname()}. It failed when call compute${field.getKeynameFirstCapitalized()}() : " + err);
+                    }
+                }
+#else## if($testRecomputeNeeded
+                try {
+                    this._N_${field.getKeyname()}.setValue(this.compute${field.getKeynameFirstCapitalized()}());
+                } catch (err) {
+                    this.debug("[${screen.getKeyname()}] Cannot compute ${field.getKeyname()}. It failed when call compute${field.getKeynameFirstCapitalized()}() : " + err);    
+                }
+#end## if($testRecomputeNeeded
+            }, this);
+
+###if (${onefield.isCalculated()})## Manage dependencies on calculated field !!!
+##            // TODO This is the case of a calculated field that depends on another calculated field.
+#end
+#end
+#end## end of 2 loop on all fields and dependency. Keep the blank line just after.
+#end## end if isConstantrule
+#end#end
+#end## End of macro

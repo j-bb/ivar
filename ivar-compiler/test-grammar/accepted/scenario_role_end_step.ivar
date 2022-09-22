@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+import a.b.c;
+
+##    This will be a great app
+
+application testivarapp "Test Ivar Application" fr-fr;
+scenario g.h.i.ajouterbouteille "Ajouter une bouteille" create Bouteille  {
+    ## A shadow step
+    nom;
+
+    ## atomic steps
+    integer 1..1 oneNumber;
+    integer 0..1 zeroOrOneNumber;
+
+    integer 1..* mustBeSeveralNumber;
+## An Ivar comment here
+    integer 0..* couldBeSeveralNumber;
+    ## One another here.
+    integer 3..12 veryUnprobableBusinessCaseButPossibleNumber;
+
+    ## Composite step
+    Cepage 1..* cepage;
+    Bla 1..1 b;
+
+    roles {
+        + role1;
+        + role2 "administrator for somthing strange";
+        - role3;
+        - role4 "another strange role";
+    }
+}
+
+scenario g.h.i.ajouterbouteille "Ajouter une bouteille" read Bouteille;
+scenario g.h.i.ajouterbouteille "Ajouter une bouteille" update Bouteille;
+scenario g.h.i.ajouterbouteille "Ajouter une bouteille" delete Bouteille;

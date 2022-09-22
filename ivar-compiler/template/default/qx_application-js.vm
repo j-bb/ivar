@@ -1,0 +1,152 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+/* ************************************************************************
+
+   Copyright Digital Orbiter. http://www.dogitalorbiter.com
+
+   Authors: Orbiter Engine
+
+************************************************************************ */
+
+/* ************************************************************************
+
+${hash}asset(${application.getPackageName()}/*)
+##${hash}asset(raphael/raphael-min.js)
+##${hash}asset(raphael/landingzone.js)
+
+************************************************************************ */
+
+/**
+ * This is the main application class of your custom application "${application.getName()}" (${application.getKeyname()})
+ */
+qx.Class.define("${application.getPackageName()}.Application",
+{
+  extend : qx.application.Standalone,
+
+
+
+  /*
+  *****************************************************************************
+     MEMBERS
+  *****************************************************************************
+  */
+
+  members :
+  {
+    /**
+     * This method contains the initial application code and gets called
+     * during startup of the application
+     */
+    main : function()
+    {
+      // Call super class
+      this.base(arguments);
+      this.debug("${application.getPackageName()}.Application : main() for application ${application.getName()}");
+
+      // Enable logging in debug variant
+##      if (qx.core.Environment.get("qx.debug")) {
+        // support native logging capabilities, e.g. Firebug for Firefox
+        qx.log.appender.Native;
+        // support additional cross-browser console. Press F7 to toggle visibility
+        qx.log.appender.Console;
+##      }
+
+      /*
+      -------------------------------------------------------------------------
+        Below is your actual application code...
+      -------------------------------------------------------------------------
+      */
+
+        qx.util.AliasManager.getInstance().add("icons", "/digitalorbiter/icons/");
+
+        dolab.fwk.ui.IconManager.init();
+        dolab.fwk.ui.AbstractApplication.init();
+
+        //${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().init(this);
+        this.publicStep();
+    },
+
+    publicStep : function() {
+        var url = window.location.href;
+        if (url != null) {
+            this.debug("URL = " + url);
+            var screenId = this.getURLParam(url, "screen");
+            if (screenId != null && screenId != "" && screenId.length >10) {
+                var pane;
+#foreach($screen in ${application.getScreens()})
+#if(${screen.isPublic()})
+                if("${screen.getUniqueID()}" == screenId) {
+                    pane = new ${screen.getQxClassName()}();
+                }
+#end
+#end
+                if (pane != null) {
+                    // Add here a check to the server that include the uniqueID
+                    try {
+                        dolab.fwk.ui.WindowManager.PANES_OPENING_MODE = "raw";
+                        this.debug("OK, you reached a public screen " + pane.getTitle());
+                        pane.publicKey = screenId;
+                        screenId = null;
+                        //this.hideLogin();
+                        ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().openWin(pane);
+                    } catch (err) {
+                        this.error(err);
+                    }
+                } else {
+                    this.debug("publicStep => pane is null for uniqueID = " + screen);
+                    this.showLogin();
+                }
+            } else {
+                this.debug("publicStep => screenID is null or empty or too short");
+                this.showLogin();
+            }
+        } else {
+            this.debug("publicStep => url is null");
+            this.showLogin();
+        }
+    },
+
+    getURLParam : function(url, strParamName) {
+        var result;
+        var strHref = url;
+        if (strHref.indexOf("?") > -1) {
+            var strQueryString = strHref.substr(strHref.indexOf("?")).toLowerCase();
+            var aQueryString = strQueryString.split("&");
+            for (var i = 0, aQueryStringLength = aQueryString.length; i < aQueryStringLength; i++) {
+                if (aQueryString[i].indexOf(strParamName + "=") > -1) {
+                    var aParam = aQueryString[i].split("=");
+                    result = aParam[1];
+                    break;
+                }
+            }
+        }
+        return result;
+    },
+
+    showLogin : function() {
+        ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().showLogin();
+    },
+
+    hideLogin : function(reInit) {
+        ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().hideLogin(reInit);
+    },
+
+    getPreferenceManager : function() {
+        return ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().doGetPreferenceManager();
+    }
+  }
+});

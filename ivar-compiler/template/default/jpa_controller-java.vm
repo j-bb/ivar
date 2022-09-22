@@ -1,0 +1,516 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+###############################
+####### Begin #################
+###############################
+#parse( "common/java_general_copyright.vm" )
+package ${javaBusinessObject.getPackageName()};
+
+import ${javaBusinessObject.getPackageName()}.${javaBusinessObject.getName()};
+import dolab.fwk.*;
+import dolab.fwk.rpc.ControllerContext;
+import dolab.fwk.controller.RuntimeFilterElement;
+#if(${javaBusinessObject.hasFileAttributes()})
+import dolab.fwk.files.persistence.ApplicationFileIndex;
+import dolab.fwk.files.persistence.ApplicationFileIndexController;
+#end
+import dolab.fwk.files.persistence.SerializableFileIndex;
+#if(${javaBusinessObject.hasFusionServerCalls()})
+import dolab.fwk.files.download.FileRequestToken;
+import dolab.fwk.fusion.FusionEngine;
+import dolab.fwk.util.ApplicationDirtyConfig;
+import dolab.fwk.util.CollectionFactory;
+import dolab.fwk.util.IOHelperException;
+#end
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+import javax.persistence.*;
+
+import java.util.*;
+
+public class ${javaBusinessObject.getName()}Controller implements Remote {
+#if(${javaBusinessObject.hasFileAttributes()})
+    private static final ApplicationFileIndexController fileIndexController = new ApplicationFileIndexController();
+
+#end
+#if(${javaBusinessObject.hasServerCalls()})
+#foreach($serverCall in ${javaBusinessObject.getServerCalls()})
+
+## Keep the above line empty
+#if(${serverCall.hasFilters()})
+    /*
+#if(${serverCall.hasDynamicFilter()})
+#generateFilterMethodJavadoc(${serverCall.getDynamicFilter()})
+#end
+#if(${serverCall.hasStaticFilter()})
+#if(${serverCall.hasDynamicFilter()})
+
+#end
+#generateFilterMethodJavadoc(${serverCall.getStaticFilter()})
+#end
+    */
+#end ## serverCall has filters
+    public #if(${serverCall.isFusion()})FileRequestToken#else${serverCall.getMethodReturnType()}#end ${serverCall.getServerMethodName()}(${serverCall.getParamsForMethodDeclaration()}) throws RemoteException {
+        final Logger log = cc.getLogger();
+#if(${serverCall.hasFilters()})
+#if(${serverCall.hasDynamicFilter()})
+#generateFilterComment(${serverCall.getDynamicFilter()})
+#end
+#if(${serverCall.hasStaticFilter()})
+#if(${serverCall.hasDynamicFilter()})
+        //
+#end
+#generateFilterComment(${serverCall.getStaticFilter()})
+#end
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}()");
+
+#generateFetchPlan($serverCall)
+
+        ${javaBusinessObject.getName()}[] result = null;
+#if(${serverCall.hasStaticFilter()})
+
+        // Static filter
+        final String staticFilter = "${serverCall.getStaticFilter().getStaticRequest(${serverCall.getParamName()})}";
+#end
+#if(${serverCall.hasDynamicFilter()})
+
+        // Dynamic filter
+        //     Check for mandatory parameters
+
+#set($thereIsNoMandatoryFilterElement = true)
+#foreach ($filterElement in ${serverCall.getDynamicFilter().getNonBooleanOperatorFilterElements()})
+#if(${filterElement.isMandatory()})
+#set($thereIsNoMandatoryFilterElement = false)
+        if (${filterElement.getParamName()} == null && !${filterElement.getParamName()}NullValue) {
+            throw new RemoteException("${serverCall.getServerMethodName()}(), ${filterElement.getParamName()} is a mandatory element and can't be null");        
+        }
+#end
+#end
+
+#if($thereIsNoMandatoryFilterElement)
+        // Check the case where all parameter are null.
+        boolean allNull = true;
+#foreach ($filterElement in ${serverCall.getDynamicFilter().getNonBooleanOperatorFilterElements()})
+        if (${filterElement.getParamName()} != null || ${filterElement.getParamName()}NullValue == true) {
+            allNull = false;
+        }
+#end
+        if (allNull) {
+            throw new RemoteException("${serverCall.getServerMethodName()}(), all optional filter element are null, no request possible ! (#foreach ($filterElement in ${serverCall.getDynamicFilter().getNonBooleanOperatorFilterElements()})${filterElement.getParamName()}, #end)");
+        }
+#end
+
+        // Dynamic filter
+        //     Building dynamic filter request
+#set($requestParts = ${serverCall.getDynamicFilter().getDynamicRequest(${javaBusinessObject.getVariableName()})})
+
+        final Map<String, RuntimeFilterElement> requestParts = new HashMap(${requestParts.size()}) {
+#foreach ($requestPartKey in ${requestParts.keySet()})
+#set($requestPart = ${requestParts.get(${requestPartKey})})
+            {
+#if(${requestPart.isThereRequestJoinElement()})
+                put("${requestPartKey}", new RuntimeFilterElement("${requestPart.getBooleanOperator()}", "${requestPart.getRequestJoinElement()}", "${requestPart.getRequestWhereElement()}", "${requestPart.getRequestWhereElementAgainstNull()}"));
+#else
+                put("${requestPartKey}", new RuntimeFilterElement("${requestPart.getBooleanOperator()}", "${requestPart.getRequestWhereElement()}", "${requestPart.getRequestWhereElementAgainstNull()}"));
+#end
+            }
+#end
+        };
+
+        String joinClause = "";
+        boolean joinFirst = true;
+        String dynamicFilter = "";
+        boolean first = true;
+#foreach ($requestPartKey in ${requestParts.keySet()})
+
+        // ${requestPartKey}
+        log.debug("${requestPartKey} : isNull ? " + ${requestPartKey}NullValue+", value = "+(${requestPartKey}!=null?${requestPartKey}:"null"));
+            if (${requestPartKey} != null || ${requestPartKey}NullValue) {
+                if (!first) {
+                    dynamicFilter += " ";
+                    dynamicFilter += requestParts.get("${requestPartKey}").getBooleanOperator();
+                    dynamicFilter += " ";
+                } else {
+                    first = false;
+                }
+                log.debug("${requestPartKey}NullValue = " + ${requestPartKey}NullValue);
+#set($requestPart = ${requestParts.get(${requestPartKey})})
+#if(${requestPart.isThereRequestJoinElement()})
+                if (!joinFirst) {
+                    joinClause += ", ";
+                } else {
+                    joinFirst = false;
+                }
+                joinClause += "${requestPart.getRequestJoinElement()}";
+#end
+                if (${requestPartKey}NullValue) {
+                    // Case of test against NULL in database
+                    dynamicFilter += requestParts.get("${requestPartKey}").getRequestWhereElementAgainstNull();
+                } else {
+                    // Case of test against :${requestPartKey}  
+                    dynamicFilter += requestParts.get("${requestPartKey}").getRequestWhereElement();
+                }
+            }
+#end## end of #foreach ($requestPartKey in ${requestParts.keySet()})
+
+#end## end of #if(${serverCall.hasDynamicFilter()})
+        final List<${javaBusinessObject.getName()}> ${javaBusinessObject.getVariableName()};
+        try {
+##            // Waf waf ! I'm just a stupid comments to make milou really alive in the code :-)
+            String ql = "SELECT DISTINCT ${javaBusinessObject.getVariableName()} ";
+            ql += "FROM ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()}";
+#if(${serverCall.hasDynamicFilter()})
+            if (!joinFirst) {
+                ql = ql + " JOIN " + joinClause;    
+            }
+#end
+            ql += " WHERE ";
+#if(${serverCall.hasStaticFilter()})
+            ql += staticFilter;
+#if(${serverCall.hasDynamicFilter()})
+            ql += " AND ";
+#end
+#end
+#if(${serverCall.hasDynamicFilter()})
+            ql += dynamicFilter;
+#end
+
+            log.info("Querying the database using " + ql);
+#if(${serverCall.hasDynamicFilter()})
+#foreach ($filterElement in ${serverCall.getDynamicFilter().getNonBooleanOperatorFilterElements()})
+
+            if (!${filterElement.getParamName()}NullValue) {
+                if (${filterElement.getParamName()} != null) {
+                    log.debug("${filterElement.getParamName()} = "+ ${filterElement.getParamName()});
+                } else {
+                    log.debug("Houston, we have ${filterElement.getParamName()} that is null and not mandatory, and thus bypassed. Nothing wrong with that.");
+                }
+            }
+#end#end
+
+            final Query query = cc.createQuery(ql);
+#if(${serverCall.hasDynamicFilter()})
+#foreach ($filterElement in ${serverCall.getDynamicFilter().getNonBooleanOperatorFilterElements()})
+            if (${filterElement.getParamName()} != null && !${filterElement.getParamName()}NullValue) {
+                query.setParameter("${filterElement.getParamName()}", ${filterElement.getParamName()});
+            }
+#end#end
+#if(${serverCall.hasStaticFilter()} && ${serverCall.hasRuntimeVariable()})
+#foreach ($filterElement in ${serverCall.getStaticFilter().getNonBooleanOperatorFilterElements()})
+#if(${filterElement.isRuntimeVariable()})
+            if (${filterElement.getParamName()} != null) {
+                query.setParameter("${filterElement.getParamName()}", ${filterElement.getParamName()});
+            }
+#end#end#end
+
+            final List requestResult = query.getResultList();
+            ${javaBusinessObject.getVariableName()} = (List<${javaBusinessObject.getName()}>) requestResult;
+
+            result = ${javaBusinessObject.getVariableName()}.toArray(new ${javaBusinessObject.getName()}[${javaBusinessObject.getVariableName()}.size()]);
+        } catch (Throwable t) {
+            log.error(t, true);
+            cc.rollbackTransaction();
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}() : get back with " + (result != null?result.length:"result is null") + " ${javaBusinessObject.getName()}");
+        }
+
+        return result;
+#elseif(${serverCall.isCreate()})
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()})");
+        log.debug("Attempt to add a ${javaBusinessObject.getName()}");
+        log.debug("-------------------------");
+        log.debug(${serverCall.getParamName()}.toString());
+        log.debug("-------------------------");
+
+#generateFetchPlan($serverCall)
+        try {
+            cc.beginTransaction();
+            final ${javaBusinessObject.getName()} merged${javaBusinessObject.getName()} = cc.merge(${serverCall.getParamName()});
+            persistFiles(cc, merged${javaBusinessObject.getName()});
+            cc.commitTransaction();
+        } catch (Throwable t) {
+            cc.rollbackTransaction();
+            log.error(t, true);
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()})");        
+        }
+#elseif(${serverCall.isDelete()})
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()}Id = "+${serverCall.getParamName()}Id+")");
+
+#generateFetchPlan($serverCall)
+        try {
+            cc.beginTransaction();
+            final String ql = "DELETE FROM ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()} WHERE ${javaBusinessObject.getVariableName()}.id=" + ${serverCall.getParamName()}Id;
+            final Query query = cc.createQuery(ql);
+            deleteLinkedFiles(cc, (${javaBusinessObject.getName()}) cc.createQuery("SELECT ${javaBusinessObject.getVariableName()} FROM ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()} WHERE ${javaBusinessObject.getVariableName()}.id=" + ${serverCall.getParamName()}Id).getSingleResult());
+            final int deletedRows = query.executeUpdate();
+            log.info(deletedRows + " object(s) were affected by the delete query in ${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}()");
+            cc.commitTransaction();
+        } catch (Throwable t) {
+            cc.rollbackTransaction();
+            log.error(t, true);
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.deleteById(" + ${javaBusinessObject.getVariableName()}Id + ")");
+        }
+#elseif(${serverCall.isRead()} && !${serverCall.isStrictlyRead()}) ## search or select...
+#if(${serverCall.isPrepare()})
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}()");
+
+#generateFetchPlan($serverCall)
+#if(${serverCall.isFusion()})
+#preHandleFusionRequest()
+#end
+        ${serverCall.getMethodReturnType()} result = null;
+        final List<${javaBusinessObject.getName()}> ${javaBusinessObject.getVariableName()};
+        try {
+            final String ql = "SELECT ${serverCall.getParamName()} FROM ${javaBusinessObject.getName()} ${serverCall.getParamName()}";
+            final Query query = cc.createQuery(ql);
+            if (limit != null) { query.setMaxResults(limit); }
+            final List requestResult = query.getResultList();
+            ${javaBusinessObject.getVariableName()} = (List<${javaBusinessObject.getName()}>) requestResult;
+
+            result = ${javaBusinessObject.getVariableName()}.toArray(new ${javaBusinessObject.getName()}[${javaBusinessObject.getVariableName()}.size()]);            
+            if (result != null && result.length > 0) {
+                for (final ${javaBusinessObject.getName()} resultPart : result) {
+                    populateFileIndexes(cc, resultPart);
+                }
+            }
+        } catch (Throwable t) {
+            log.error(t, true);
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}()");
+        }
+
+#if(${serverCall.isFusion()})
+#handleFusionRequest($serverCall)
+#else
+        return result;
+#end
+#end
+#elseif(${serverCall.isStrictlyRead()} || (${serverCall.isUpdate()} && ${serverCall.isPrepare()}))
+
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()}Id = "+${serverCall.getParamName()}Id+")");        
+
+#generateFetchPlan($serverCall)
+#if(${serverCall.isFusion()})
+#preHandleFusionRequest()
+#end
+        ${serverCall.getMethodReturnType()} result = null;
+        try {
+            result = cc.find(${javaBusinessObject.getName()}.class, ${serverCall.getParamName()}Id);
+#if(${javaBusinessObject.hasFileAttributes()})
+            if (result != null) {
+                populateFileIndexes(cc, result);
+            }
+#end
+        } catch (Throwable t) {
+            log.error(t, true);
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()}Id = "+${serverCall.getParamName()}Id+")");
+        }
+
+#if(${serverCall.isFusion()})
+#handleFusionRequest($serverCall)
+#else
+        return result;
+#end
+#elseif(${serverCall.isUpdate()} && ${serverCall.isExecute()})
+        log.beginBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()}Id = "+${serverCall.getParamName()}.getId()+")");
+#generateFetchPlan($serverCall)
+        ${serverCall.getMethodReturnType()} result = null;
+        try {
+            cc.beginTransaction();
+#if(${javaBusinessObject.hasFileAttributes()})
+            final ${serverCall.getMethodReturnType()} current = cc.find(${serverCall.getMethodReturnType()}.class, ${serverCall.getParamName()}.getId());
+
+            if (current != null) {
+#foreach($attribute in ${javaBusinessObject.getAttributes()})
+#if(${attribute.isFile()})
+                if (current.get${attribute.getJavaName()}() != null && null != ${serverCall.getParamName()}.get${attribute.getJavaName()}() && !current.get${attribute.getJavaName()}().equals(${serverCall.getParamName()}.get${attribute.getJavaName()}())) {
+                    log.debug("Old image id (will be deleted in database and on filesystem) : " + current.get${attribute.getJavaName()}());
+                    log.debug("New image id: " + ${serverCall.getParamName()}.get${attribute.getJavaName()}());
+                    fileIndexController.deleteInDelete(cc, current.get${attribute.getJavaName()}()); 
+                }
+#end
+#end
+            }
+
+#end
+            result = cc.merge(${serverCall.getParamName()});
+            persistFiles(cc, result);
+            cc.commitTransaction();
+        } catch (Throwable t) {
+            cc.rollbackTransaction();
+            log.error(t, true);
+            throw new RemoteException(t.getMessage(), t);
+        } finally {
+            log.endBlock("${javaBusinessObject.getName()}Controller.${serverCall.getServerMethodName()}(${serverCall.getParamName()}Id = "+${serverCall.getParamName()}.getId()+")");
+        }
+
+        return result;
+#end
+    }
+#end
+#end##end if has server call
+
+    public void populateFileIndexes(final ControllerContext cc, final ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()}) throws RemoteException {
+#foreach($attribute in ${javaBusinessObject.getAttributes()})
+#if(${attribute.isFile()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null) {
+            final ApplicationFileIndex appFileIndex = fileIndexController.getFileIndexById(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+            if (appFileIndex != null) {
+                ${javaBusinessObject.getVariableName()}.set${attribute.getJavaName()}FileIndex(appFileIndex.getSerializableSelf());
+            }
+        }
+#elseif(!${attribute.isJavaBuiltIn()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null) {
+#if(${attribute.isCollection()})
+            final ${attribute.getType()}Controller ctrlr = new ${attribute.getType()}Controller();
+            for (final ${attribute.getType()} subObj : ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}()) {
+                ctrlr.populateFileIndexes(cc, subObj);
+            }
+#else
+            new ${attribute.getType()}Controller().populateFileIndexes(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+#end
+        }
+#end
+#end
+    }
+
+    public void persistFiles(final ControllerContext cc, final ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()}) throws RemoteException {
+#foreach($attribute in ${javaBusinessObject.getAttributes()})
+#if(${attribute.isFile()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null) {
+            final ApplicationFileIndex appFileIndex = fileIndexController.getFileIndexById(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+            if (appFileIndex != null) {
+                appFileIndex.persist();
+            }
+        }
+#elseif(!${attribute.isJavaBuiltIn()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null) {
+#if(${attribute.isCollection()})
+            final ${attribute.getType()}Controller ctrlr = new ${attribute.getType()}Controller();
+            for (final ${attribute.getType()} subObj : ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}()) {
+                ctrlr.persistFiles(cc, subObj);
+            }
+#else
+            new ${attribute.getType()}Controller().persistFiles(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+#end
+        }
+#end
+#end
+    }
+
+    public void deleteLinkedFiles(final ControllerContext cc, final ${javaBusinessObject.getName()} ${javaBusinessObject.getVariableName()}) throws RemoteException {
+        final Logger log = cc.getLogger();
+        log.beginBlock("Deleting linked files specified by the fetch path... In ${javaBusinessObject.getName()}Controller");
+#foreach($attribute in ${javaBusinessObject.getAttributes()})
+#if(${attribute.isFile()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null) {
+            final ApplicationFileIndex appFileIndex = fileIndexController.getFileIndexById(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+            if (appFileIndex != null && cc.hasField(${javaBusinessObject.getName()}.class, "${attribute.getName()}")) {
+                fileIndexController.deleteInDelete(cc, appFileIndex.getId());
+            }
+        }
+#elseif(!${attribute.isJavaBuiltIn()})
+        if (${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}() != null && cc.hasField(${javaBusinessObject.getName()}.class, "${attribute.getName()}")) {
+#if(${attribute.isCollection()})
+            final ${attribute.getType()}Controller ctrlr = new ${attribute.getType()}Controller();
+            for (final ${attribute.getType()} subObj : ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}()) {
+                ctrlr.deleteLinkedFiles(cc, subObj);
+            }
+#else
+            new ${attribute.getType()}Controller().deleteLinkedFiles(cc, ${javaBusinessObject.getVariableName()}.get${attribute.getJavaName()}());
+#end
+        }
+#end
+#end
+        log.endBlock("Deleting linked files specified by the fetch path... Done.");
+    }
+}
+###############################
+####### Begin macros ##########
+###############################
+#macro(generateFilterMethodJavadoc $filter)
+    * ${filter.getModeForDoc()} filter ${filter.getKeyname()} : ${filter.getServerMethodJavadoc()}
+#foreach($filterElement in ${filter.getFilterElements()})
+#if(${filterElement.isBooleanOperator()})
+    *   ${filterElement.getPos()}. ${filterElement.getOperator()}
+#else
+    *   ${filterElement.getPos()}. ${filterElement.getKeyname()} ${filterElement.getOperator()} #if(${filterElement.hasValue()})${filterElement.getValue()}#end
+
+#end
+#end
+#end
+#macro(generateFilterComment $filter)
+        // ${filter.getModeForDoc()} filter ${filter.getKeyname()} :
+#foreach ($filterElement in ${filter.getFilterElements()})
+#if(${filterElement.isBooleanOperator()})
+        //    ${filterElement.getPos()}: ${filterElement.getOperator()}
+#else
+        //    ${filterElement.getPos()}: ${filterElement.getKeyname()} ${filterElement.getOperator()} #if(${filterElement.hasValue()})${filterElement.getValue()}#end
+
+#end
+#end
+#end
+#############
+#macro(generateFetchPlan $serverCall)
+#if(${serverCall.hasFetchPlan()})
+        log.beginBlock("Computing fetch plan for this request...");
+#foreach($fetchPlanElement in ${serverCall.getFetchPlan()})
+#if(${fetchPlanElement.isTransient()})
+        cc.addTransientField(${fetchPlanElement.getType()}, "${fetchPlanElement.getName()}");
+#else
+        cc.addField(${fetchPlanElement.getType()}, "${fetchPlanElement.getName()}");
+#end
+#end
+        cc.computeFetchPlan();
+        log.endBlock("Computing fetch plan for this request... done.");
+#end
+#end
+#############
+#macro(preHandleFusionRequest)
+        log.beginBlock("Addition to fetch path for fusion request...");
+        cc.addTransientField(FileRequestToken.class, "fileName");
+        cc.addTransientField(FileRequestToken.class, "key");
+        log.endBlock("Addition to fetch path for fusion request... Done.");
+#end
+#############
+#macro(handleFusionRequest $serverCall)
+        log.beginBlock("Generating ODT fusion in server call ${serverCall.getServerMethodName()}...");
+        FileRequestToken token = null;
+        try {
+            final ApplicationDirtyConfig config = ApplicationDirtyConfig.getInstance();
+            final FusionEngine engine = new FusionEngine(config.get("fusion-results-dir"));
+            Map<String, Object> contexts = CollectionFactory.newMap();
+            contexts.put("${serverCall.getParamName()}", #if(${serverCall.isStrictlyRead()})result#else${javaBusinessObject.getVariableName()}#end);
+            token = engine.generate(config.get("fusion-templates-dir") + "/${serverCall.getTemplateName()}", contexts, "${serverCall.getScenarioKeyname()}-<date>.odt");
+        } catch (IOHelperException e) {
+            log.error(e, true);
+            throw new RemoteException(e.getMessage(), e);
+        } finally {
+            log.endBlock("Generating ODT fusion in server call ${serverCall.getServerMethodName()}... Done.");
+        }
+        return token;
+#end

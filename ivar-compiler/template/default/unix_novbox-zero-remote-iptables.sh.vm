@@ -1,0 +1,82 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+${hash}!/bin/bash
+#parse( "common/sharp_general_copyright.vm" )
+
+## http://documentation.dedibox.fr/doku.php?id=admin:iptables
+
+mkdir -p /var/log/novbox
+log=/var/log/novbox/iptables.log
+touch ${dollar}log
+
+timestamp="${dollar}(date +%Y-%m-%d_%H:%M:%S)";
+
+echo "- ${dollar}timestamp iptables config ..." >> ${dollar}log
+# Flush tables :
+iptables -t filter -F
+iptables -t filter -X
+
+# Policy :
+# No incomming :
+iptables -t filter -P INPUT DROP
+iptables -t filter -P FORWARD DROP
+
+# No outgoing :
+iptables -t filter -P OUTPUT DROP
+
+# Autoriser loopback
+iptables -t filter -A INPUT -i lo -j ACCEPT
+iptables -t filter -A OUTPUT -o lo -j ACCEPT
+
+# Established traffic is OK
+iptables -A INPUT -i eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Allow SSH
+iptables -t filter -A INPUT -i eth0 -p tcp --dport 22 -j ACCEPT
+
+# Allow HTTP on Tomcat
+iptables -t filter -A INPUT -i eth0 -p tcp --dport 8080 -j ACCEPT
+
+# Allow output HTTP
+iptables -t filter -A OUTPUT -o eth0 -p tcp --dport 80 -j ACCEPT
+iptables -t filter -A OUTPUT -o eth0 -p tcp --dport 443 -j ACCEPT
+
+#DNS query
+iptables -t filter -A OUTPUT -o eth0 -p tcp --dport 53 -j ACCEPT
+iptables -t filter -A OUTPUT -o eth0 -p udp --dport 53 -j ACCEPT
+
+#NTP
+iptables -t filter -A OUTPUT -o eth0 -p udp --dport 123 -j ACCEPT
+
+# Log dropped packets
+# iptables -A INPUT -i eth0 -m limit --limit 5/min -j LOG --log-prefix "iptables denied: " --log-level 7
+iptables -A INPUT  -p tcp  -m limit --limit 5/min -j LOG --log-prefix "Denied  in  TCP: " --log-level 7
+iptables -A INPUT  -p udp  -m limit --limit 5/min -j LOG --log-prefix "Denied  in  UDP: " --log-level 7
+iptables -A INPUT  -p icmp -m limit --limit 5/min -j LOG --log-prefix "Denied  in ICMP: " --log-level 7
+iptables -A OUTPUT -p tcp  -m limit --limit 5/min -j LOG --log-prefix "Denied out  TCP: " --log-level 7
+iptables -A OUTPUT -p udp  -m limit --limit 5/min -j LOG --log-prefix "Denied out  UDP: " --log-level 7
+iptables -A OUTPUT -p icmp -m limit --limit 5/min -j LOG --log-prefix "Denied out ICMP: " --log-level 7
+# No incomming packet
+iptables -A INPUT -j DROP
+iptables -A OUTPUT -j DROP
+iptables -A FORWARD -j DROP
+
+# End
+iptables -L -v >> ${dollar}log
+
+echo ". Iptables config. Done." >> ${dollar}log

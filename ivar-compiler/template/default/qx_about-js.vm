@@ -1,0 +1,79 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+qx.Class.define("${application.getPackageName()}.About", {
+    extend : dolab.fwk.ui.AbstractPane,
+
+    construct : function() {
+        this.base(arguments);
+#if(${compiler.isDebug()})
+        dolab.fwk.ui.AbstractPane.DEBUG = true;
+#end
+
+        this.layout = new qx.ui.layout.VBox();
+
+        this.pane = new qx.ui.container.Composite(this.layout);
+        this.pane.seleniumId = "pane";
+    },
+
+    members : {
+
+        layout : null,
+
+        pane : null,
+
+        getMenuBar : function() {
+            return null;
+        },
+
+        getInitRequest : function() {
+            return null;
+        },
+
+        getIcon : function() {
+            return "targapp create";
+        },
+
+        afterInitData : function(data) {
+        },
+
+        getCaption : function() {
+            return "About ${application.getName()}";
+        },
+
+        doInitUI : function() {
+##            var buttonPane = dolab.fwk.ui.AbstractPane.getNewButtonsPanel(
+##                [
+##                    {lbl:"Ok", cde:this.okAction, ctx:this, keyLstnr:this.contentPane, key:"Enter", seleniumId: "okButton", ico:"ok"}
+##                ]);
+##
+##            this.contentPane.add(buttonPane, {edge: "south"});
+
+            var aboutFrame = new qx.ui.embed.Iframe().set({
+                    width: 400,
+                    height: 300,
+                    minWidth: 200,
+                    minHeight: 150,
+                    source: "about.html",
+                    decorator : null
+                  });
+
+            this.pane.add(aboutFrame, {flex: 1});
+
+            this.contentPane.add(this.pane, {edge: "center"});
+        }
+    }
+});

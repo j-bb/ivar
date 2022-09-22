@@ -1,0 +1,160 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/javaee
+		  http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+         version="2.5">
+    <display-name>${application.getName()}</display-name>
+
+#if(!${compiler.isProd()})
+    <servlet>
+        <servlet-name>${application.getKeyname()}-ResourceMappingServlet</servlet-name>
+        <servlet-class>dolab.fwk.resource.ResourceMappingServlet</servlet-class>
+        <init-param>
+            <param-name>resourceDirectory</param-name>
+##            TODO 2020 is this still needed since icons are embeded with tomcat now?
+##            check server.xml for a context /icons.
+##            Icons no more embeded in app packaging.
+##            <param-value>${targappConfig.getIconsFolder()}</param-value>
+            <param-value>RESSOURCE FOLDER TO DEFINE</param-value>
+        </init-param>
+        <init-param>
+    		<param-name>referrerCheck</param-name>
+	    	<param-value>domain</param-value>
+	    </init-param>
+        <load-on-startup>-1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-ResourceMappingServlet</servlet-name>
+        <url-pattern>/icons/*</url-pattern>
+    </servlet-mapping>
+#end
+
+    <servlet>
+        <servlet-name>${application.getKeyname()}-rpc</servlet-name>
+        <servlet-class>${application.getKeyname()}.rpc.JavaRpcServlet</servlet-class>
+        <init-param>
+    		<param-name>referrerCheck</param-name>
+	    	<param-value>domain</param-value>
+	    </init-param>
+#if(${application.hasFusion()})
+        <init-param>
+            <param-name>fusion-files-dir</param-name>
+            <param-value>${targappConfig.getFilesDir()}/${application.getKeyname()}/files</param-value>
+        </init-param>
+#end
+#if(${application.hasFileUploads()})
+        <init-param>
+            <param-name>uploads-files-dir</param-name>
+            <param-value>${targappConfig.getFilesDir()}/${application.getKeyname()}/files</param-value>
+        </init-param>
+#end
+        <load-on-startup>-1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-rpc</servlet-name>
+        <url-pattern>*.qxrpc</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>${application.getKeyname()}-AuthenticationServlet</servlet-name>
+        <servlet-class>${application.getKeyname()}.auth.AuthenticationServlet</servlet-class>
+        <load-on-startup>-1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-AuthenticationServlet</servlet-name>
+        <url-pattern>*.auth</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>${application.getKeyname()}-TableExport</servlet-name>
+        <servlet-class>dolab.fwk.files.download.TableExportServlet</servlet-class>
+        <load-on-startup>-1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-TableExport</servlet-name>
+        <url-pattern>/files/tables/*</url-pattern>
+    </servlet-mapping>
+
+#if(${application.hasFileUploads()})
+    <servlet>
+        <servlet-name>${application.getKeyname()}-ApplicationFilesServlet</servlet-name>
+        <servlet-class>dolab.fwk.files.ApplicationFilesServlet</servlet-class>
+        <load-on-startup>-1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-ApplicationFilesServlet</servlet-name>
+        <url-pattern>/files/uploads/*</url-pattern>
+        <url-pattern>*.upload</url-pattern>
+    </servlet-mapping>
+#end
+
+#if(${application.hasFusion()})
+    <servlet>
+        <servlet-name>${application.getKeyname()}-FusionServlet</servlet-name>
+        <servlet-class>dolab.fwk.fusion.FusionServlet</servlet-class>
+        <load-on-startup>0</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>${application.getKeyname()}-FusionServlet</servlet-name>
+        <url-pattern>/files/fusion/*</url-pattern>
+    </servlet-mapping>
+#end
+
+    <filter>
+        <filter-name>${application.getKeyname()}-AuthentificationFilter</filter-name>
+        <filter-class>${application.getKeyname()}.auth.AuthenticationFilter</filter-class>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>${application.getKeyname()}-AuthentificationFilter</filter-name>
+        <url-pattern>*.qxrpc</url-pattern>
+#if(${application.hasFileUploads()})
+        <url-pattern>/files/uploads/*</url-pattern>
+        <url-pattern>*.upload</url-pattern>
+#end
+#if(${application.hasFusion()})
+        <url-pattern>/files/fusion/*</url-pattern>
+#end
+        <url-pattern>/files/tables/*</url-pattern>
+    </filter-mapping>
+
+##    <listener>
+##        <listener-class>net.bull.javamelody.SessionListener</listener-class>
+##    </listener>
+##
+##    <filter>
+##        <filter-name>monitoring</filter-name>
+##        <filter-class>net.bull.javamelody.MonitoringFilter</filter-class>
+##    </filter>
+##
+##    <filter-mapping>
+##        <filter-name>monitoring</filter-name>
+##        <url-pattern>/*</url-pattern>
+##    </filter-mapping>
+    
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+</web-app>

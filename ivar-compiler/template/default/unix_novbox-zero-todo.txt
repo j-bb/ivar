@@ -1,0 +1,17 @@
+* reduce time, currently 15-20 minutes after the machine is ready on the cloud
+* use firewall
+* add more security like fail2ban and prepare some scripts in prod like checklog
+* upgrade a new targapp version without setup the system
+* email when system upgrade is needed. Warning, it is not allowed to send email from OVH cloud
+* try postgresSQL
+* backup ? Even for a test machine, what'ses happen if we cut the machine and the customer want to start again testing ?
+* plug real novbox without partition cypher but not the novbox-zero
+* add more "compile option" or a new concept than compile option to specify the target prod system.
+Currently, the targapp is deployed locally AND the novbox-zero scripts are generated.
+* Better sys param : tomcat port, database port, password, ...
+* solve SSH key change warning because it is always new machines on OVH cloud
+* chmod u+x *.sh automatically on novbox-zero gototocloud.sh script
+
+It works
+    - on debian 64 bits : 7 min with errors
+    - on ubuntu server 10.04 : 20 min without errors

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="properties">
+
+	<property name="debug" value="false" />
+
+	<target name="debug" unless="debug-already-there">
+		<echo message="********** Begin DUMP Ant variables **********" />
+		<echo message="debug=${debug}" />
+		<echo message="PATH=${PATH}" />
+		<echo message="JAVA_HOME=${JAVA_HOME}" />
+		<echo message="java-version=${java-version}" />
+		<echo message="basedir=${basedir}" />
+		<echo message="qooxdoo-sdk=${qooxdoo-sdk}" />
+		<exec executable="python" failonerror="yes">
+			<arg line="-V" />
+		</exec>
+		<echo message="********** End DUMP Ant variables **********" />
+		<property name="debug-already-there" value="true" />
+	</target>
+</project>

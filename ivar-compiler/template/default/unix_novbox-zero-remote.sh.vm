@@ -1,0 +1,157 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+${hash}!/bin/bash
+#parse( "common/sharp_general_copyright.vm" )
+#if(${compiler.isProd()})
+prodvalue="prod"
+#else
+prodvalue="dev"
+#end
+
+server_ip=${dollar}1
+
+timer_start () {
+    timer_len=${dollar}{#timer_array[*]}
+    echo "starting a timer, ${dollar}timer_len timers already active"
+    timer_array[timer_len]=`date +%ses`
+}
+
+timer_stop () {
+    timer_len=${dollar}{#timer_array[*]}
+    echo "shutting down timer ${dollar}timer_len"
+    current_time=`date +%ses`
+    runtime=${dollar}(( ${dollar}current_time - ${dollar}{timer_array[timer_len - 1]} ))
+   if [ ${dollar}runtime -ge 3600 ] ; then
+        echo "Runtime : ${dollar}((runtime/3600))h ${dollar}((runtime/60%60))m ${dollar}((runtime%60))ses"
+    elif [ ${dollar}runtime -ge 60 ] ; then
+        echo "Runtime : ${dollar}((runtime/60))m ${dollar}((runtime%60))ses"
+    else
+        echo "Runtime : ${dollar}((runtime))ses"
+    fi
+    unset timer_array["timer_len - 1"]
+}
+
+
+timer_start
+
+echo
+
+targappfile="${application.getKeyname()}-${compiler.getDbArchLowerCase()}-${dollar}{prodvalue}-${generator.getUniqueCompileDateString()}.zip"
+
+server_user="root"
+
+echo
+
+echo "We are on remote ${dollar}server_ip"
+echo "Target file will be ${dollar}targappfile"
+echo "Server user is ${dollar}server_user"
+
+echo
+
+
+echo "Firewall check :"
+echo "----------------"
+echo
+
+iptables -L -v
+
+echo
+echo
+
+echo "" >> /etc/apt/sources.list
+echo "deb http://archive.canonical.com/ lucid partner" >> /etc/apt/sources.list
+
+aptitude -y -R -q -o Acquire::http::No-Cache=True clean
+aptitude -y -R -q -o Acquire::http::No-Cache=True update
+
+##
+## LANG
+##
+aptitude -y -R -q -o Acquire::http::No-Cache=True install language-pack-en language-pack-en-base
+aptitude -y -R -q -o Acquire::http::No-Cache=True purge language-pack-fr language-pack-fr-base language-pack-es language-pack-es-base language-pack-de language-pack-de-base language-pack-it language-pack-it-base language-pack-cs language-pack-cs-base language-pack-fi language-pack-fi-base language-pack-lt language-pack-lt-base language-pack-lv language-pack-lv-base language-pack-nl language-pack-nl-base language-pack-pl language-pack-pl-base language-pack-pt language-pack-pt-base
+echo "LANG=en_US.UTF-8" > /etc/default/locale
+echo "LANG=en_US.UTF-8" >> /etc/environment
+
+###
+### Remove unused package
+###
+aptitude -y -R -q -o Acquire::http::No-Cache=True purge ppp pppconfig pppoeconf w3m wireless-tools wpasupplicant eject telnet dictionaries-common hunspell-fr postfix apport apport-symptoms landscape-common landscape-client nano ubuntu-serverguide bind9 bind9-doc bind9-host bind9utils
+
+##
+## Upgrade
+##
+aptitude -y -R -q -o Acquire::http::No-Cache=True clean
+aptitude -y -R -q -o Acquire::http::No-Cache=True update
+aptitude -y -R -q -o Acquire::http::No-Cache=True safe-upgrade
+
+echo "Correct Ubuntu crap on GRUB ..."
+aptitude -y -R -q -o Acquire::http::No-Cache=True reinstall grub-pc
+echo "Correct Ubuntu crap on GRUB. Done."
+
+##
+## Install useful package
+##
+aptitude -y -R -q -o Acquire::http::No-Cache=True install zip unzip bzip2 multitail dcfldd iftop sun-java6-jdk ant mysql-server mysql-client ntp ntpdate
+
+echo
+
+echo "MySQL : changing root password ..."
+mysqladmin -u root -p'root' password ${targappConfig.getDbRootPassword()}
+echo "MySQL : changing root password. Done."
+
+echo
+
+cd ~/${application.getKeyname()}
+
+wget --progress=dot:mega http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-6/v6.0.29/bin/apache-tomcat-6.0.29.zip
+wget --progress=dot:mega http://jbriaud.free.fr/master-45292/icons.tar.bz2
+
+unzip -q ${dollar}targappfile
+unzip -q apache-tomcat-6.0.29.zip
+
+tomcathome="/root/${application.getKeyname()}/apache-tomcat-6.0.29"
+
+echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>" > ${dollar}tomcathome/conf/tomcat-users.xml
+echo "  <tomcat-users>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+echo "    <role rolename=\"manager\"/>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+echo "    <role rolename=\"tomcat\"/>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+echo "    <role rolename=\"admin\"/>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+echo "    <user username=\"${targappConfig.getTomcatManagerUser()}\" password=\"${properties.getTargappTomcatManagerPassword()}\" roles=\"tomcat,admin,manager\"/>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+echo "  </tomcat-users>" >> ${dollar}tomcathome/conf/tomcat-users.xml
+
+chmod u+x ${dollar}tomcathome/bin/*.sh
+
+${dollar}tomcathome/bin/startup.sh
+
+echo
+echo
+
+timer_stop
+
+echo
+echo
+
+echo "Houston, we shall take the control manually :"
+echo " - modif du fichier build.xml pour les mot de passe"
+echo " - Attention aux ports : 3306 a changer dans mysql et 8080 pour tom le chat"
+echo " - ant repackage-full"
+
+echo
+
+echo "ssh ${dollar}server_user@${dollar}server_ip"
+
+echo

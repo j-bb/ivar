@@ -1,0 +1,104 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+##        * Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##        * Inter Deposit Digital Number with APP
+##        * IDDN.FR.001.310019.000.R.C.2005.000.10000
+${hash}!/bin/bash
+#parse( "common/sharp_general_copyright.vm" )
+#if(${compiler.isProd()})
+prodvalue="prod"
+#else
+prodvalue="dev"
+#end
+
+server_ip=$1
+if [ -z "${dollar}server_ip" ] ; then
+    echo "USAGE : $0 <ip adress of the remote machine>"
+    exit -1
+fi
+
+targappfile="${application.getKeyname()}-${compiler.getDbArchLowerCase()}-${dollar}prodvalue-${generator.getUniqueCompileDateString()}.zip"
+server_user="root"
+
+echo
+echo
+
+echo "Remote is ${dollar}server_ip"
+echo "Target file will be ${dollar}targappfile"
+echo "Server user is ${dollar}server_user"
+
+echo
+
+echo "This will deploy ${application.getKeyname()} on the could (${dollar}prodvalue)"
+echo
+echo "Limitations :"
+echo "- no security on remote (no firewall, drive is not cyphered, ...)"
+echo "- remote is a small machine, currently RAM is only 256Mo"
+echo "- everything run as root"
+echo "- everything is installed in the same folder : one machine <-> one app."
+echo
+echo "Prerequisites :"
+echo "- ssh key already deployed on remote"
+
+echo
+
+echo -e " *** Warning ! Houston, are we go for the launch ?. Continue [y/N]"
+read key
+if [ "${dollar}key" != "y" ] ; then
+    echo "OK, exiting"
+    exit 0;
+fi
+
+echo "Ok Houston, you press the big red button, launch !"
+echo
+
+echo "Building target file ..."
+ant zip-for-cloud
+echo "Building target file. Done."
+
+echo
+
+##
+## Warning : don't do the following in case of an update. The remote signature change won't be detected !!!
+##
+echo "Taking new SSH public key for remote ..."
+ssh-keygen -R ${dollar}server_ip
+echo "Taking new SSH public key for remote."
+
+echo
+
+echo "Copying to remote ..."
+ssh ${dollar}server_user@${dollar}server_ip "mkdir ~/${application.getKeyname()}"
+scp remote-setup.sh ${dollar}server_user@${dollar}server_ip:~/${application.getKeyname()}/setup.sh
+scp remote-iptables.sh ${dollar}server_user@${dollar}server_ip:~/${application.getKeyname()}/iptables.sh
+scp ${dollar}targappfile ${dollar}server_user@${dollar}server_ip:~/${application.getKeyname()}
+echo "Copying to remote. Done."
+
+echo
+
+echo "Executing remote ..."
+##echo "   Installing firewall ..."
+##ssh ${dollar}server_user@${dollar}server_ip "chmod u+x ~/${application.getKeyname()}/*.sh; ~/${application.getKeyname()}/iptables.sh"
+##echo "   Installing firewall. Done."
+echo "   Setup remote ..."
+ssh ${dollar}server_user@${dollar}server_ip "chmod u+x ~/${application.getKeyname()}/*.sh; ~/${application.getKeyname()}/setup.sh ${dollar}server_ip"
+echo "   Setup remote. Done."
+
+echo
+echo
+
+echo "Houston, end of mission, roger that"

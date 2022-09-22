@@ -1,0 +1,91 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+<?xml version="1.0" encoding="UTF-8"?>
+
+#parse( "common/xml_general_copyright.vm" )
+#set($dbPort = ${targappConfig.getDbPort()})
+<persistence xmlns="http://java.sun.com/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             version="1.0">
+    <persistence-unit name="openjpa" transaction-type="RESOURCE_LOCAL">
+        <provider>org.apache.openjpa.persistence.PersistenceProviderImpl</provider>
+#foreach ( ${jbo} in ${this.getJavaBusinessObjects()} )
+        <class>${jbo.getPackageName()}.${jbo.getName()}</class>
+#end
+#if(${this.hasFileUploads()} || ${this.hasFusionTemplates()})
+        <class>dolab.fwk.files.persistence.AbstractFileIndex</class>
+#end
+#if(${this.hasFileUploads()})
+        <class>dolab.fwk.files.persistence.ApplicationFileIndex</class>
+#end
+#if(${this.hasFusionTemplates()})
+        <class>dolab.fwk.files.persistence.TechnicalFileIndex</class>
+        <class>dolab.fwk.files.persistence.FusionFileIndex</class>
+#end
+        <properties>
+            <!--Manage reverse relation automatically by OpenJPA-->
+            <property name="openjpa.InverseManager" value="true"/>
+            <!--Enable log for reverse relation-->
+            <property name="openjpa.InverseManager" value="true(Action=warn)"/>
+
+            <!--Ensure that all null value depends on fetch group, outside fetch group, null are not set.-->
+            <property name="openjpa.DetachState" value="fetch-groups"/>
+            <!--Ensure that enhancement is only at build-time by disabling enhance at run-time-->
+            <property name="openjpa.DynamicEnhancementAgent" value="false"/>
+            <property name="openjpa.RuntimeUnenhancedClasses" value="unsupported"/>
+
+##            <!--ttp://en.wikipedia.org/wiki/Foreign_key#RESTRICT), this simply means that you should not be able to delete an entity when there is still a foreign key reference to it. The way to enforce this is by using foreign key constraints, so when you use this option, OpenJPA will generate them.-->
+##            <property name="openjpa.jdbc.MappingDefaults" value="ForeignKeyDeleteAction=restrict, JoinForeignKeyDeleteAction=restrict" />
+            
+#if(${compiler.isMySQL()})
+## #if(${pool} == "true")
+##             <!--Have a look here for all config possibility-->
+##             <!--http://commons.apache.org/dbcp/configuration.html-->
+##             <property name="openjpa.ConnectionDriverName" value="org.apache.commons.dbcp.BasicDataSource"/>
+##             <property name="openjpa.ConnectionProperties"
+##                       value="DriverClassName=com.mysql.jdbc.Driver,Url=jdbc:mysql://localhost:${dbPort}/${this.getKeyname()},Username=${this.getDBUser()},Password=${this.getDBPass()}"/>
+## #else
+            <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:${dbPort}/${this.getKeyname()}"/>
+            <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
+            <property name="openjpa.ConnectionUserName" value="${this.getDBUser()}"/>
+            <property name="openjpa.ConnectionPassword" value="${this.getDBPass()}"/>
+## #end
+#elseif(${compiler.isSQLServer()})
+#if(${pool} == "true")
+            <property name="openjpa.ConnectionDriverName" value="org.apache.commons.dbcp.BasicDataSource"/>
+            <property name="openjpa.ConnectionProperties"
+                      value="DriverClassName=net.sourceforge.jtds.jdbc.Driver,Url=jdbc:jtds:sqlserver://localhost:${dbPort}/${this.getKeyname()},Username=sa,Password=sa12%"/>
+#else
+            <!--jdbc:sqlserver://localhost:1433;databaseName=AdventureWorks;user=MyUserName;password=*****;"-->
+            <!--<property name="openjpa.ConnectionURL" value="jdbc:sqlserver://localhost:3306;databaseName=nt"/>-->
+            <!--<property name="openjpa.ConnectionDriverName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>-->
+            <!--<property name="openjpa.ConnectionUserName" value="sa"/>-->
+            <!--<property name="openjpa.ConnectionPassword" value="sa12%"/>-->
+
+            <!-- http://jtds.sourceforge.net/faq.html -->
+            <property name="openjpa.ConnectionURL" value="jdbc:jtds:sqlserver://localhost:${dbPort}/${this.getKeyname()}"/>
+            <property name="openjpa.ConnectionDriverName" value="net.sourceforge.jtds.jdbc.Driver"/>
+            <property name="openjpa.ConnectionUserName" value="sa"/>
+            <property name="openjpa.ConnectionPassword" value="sa12%"/>
+#end
+#else
+            ERROR : unonkwn database architecture : ${compiler.getDbArch()} 
+#end
+            <property name="openjpa.Log" value="DefaultLevel=WARN, Tool=INFO#if(${compiler.isDbDebug()}), SQL=TRACE#end, Schema=TRACE"/>
+##            <property name="openjpa.Log" value="DefaultLevel=WARN, Tool=INFO, SQL=TRACE"/>
+        </properties>
+    </persistence-unit>
+</persistence>

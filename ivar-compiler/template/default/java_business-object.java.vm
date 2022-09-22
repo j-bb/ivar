@@ -1,0 +1,481 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#if($log.debug("[Velocity template debug] begin java business object java"))#end
+#parse("common/common.vm")
+#parse("common/java_general_copyright.vm")
+package ${this.getPackageName()};
+
+import dolab.fwk.BusinessObject;
+import dolab.fwk.IllegalValueException;
+#if(${this.hasFileAttributes()})
+import dolab.fwk.files.persistence.ApplicationFileIndex;
+import dolab.fwk.files.persistence.SerializableFileIndex;
+#end
+import javax.persistence.*;
+import org.apache.openjpa.persistence.jdbc.ElementJoinColumn;
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * #parse("common/line_author.vm")
+${this.getDoc()}
+    **/
+
+## This templateEngine take business object in memory and provide java business objects for java target.
+## TODO
+## add in a generated comments where this business object "came from" (with a list of scenarii for example).
+## take care of domain (will generate package or similar depending on target).
+## FEATURE to seek for : from a set of instance generate a file with velocity templateEngine and at the same time the interpreter because we know the grammar since we are generating files.
+@Entity
+@Table(name = "${this.getTableName()}")
+public class ${this.getName()} implements BusinessObject, java.io.Serializable {
+
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// Technical attributes section ///////
+////////////////////////////////////////////
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Default technical primary key.
+    */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false)
+    private Long id;
+
+#*
+    /**
+parse("common/java_element_copyright.vm")
+    *
+    * Optimistic locking by default managed here.
+    */
+    @Version
+    @Column(nullable = false, name = "log_version")
+    private long logVersion;
+*#
+
+#if ( ${this.hasState()} )
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// Workflow state section       ///////
+////////////////////////////////////////////
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ${this.getName()}State state = ${this.getName()}State.initial;
+#end
+
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// Business attributes section  ///////
+////////////////////////////////////////////
+
+#foreach ( $attribute in ${this.getAttributes()} )
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Engine built-in   ${attribute.isBuiltIn()}
+    * Java built-in     ${attribute.isJavaBuiltIn()}
+    * Dataset           ${attribute.isDataset()}
+    * Computed          ${attribute.isCalculated()}
+    * Collection ${attribute.isCollection()} #if(${attribute.isCollection()})[${attribute.getMin()}, ${attribute.getMax()}]#end
+
+    * Engine mandatory  ${attribute.isMandatory()}
+#if( ${attribute.hasJavadocComments()} )
+    *
+    * Comments from the specification :
+    *
+#foreach ( $commentLine in ${attribute.getJavadocComments()} )
+    * ${commentLine}
+#end
+    *
+#end
+    */
+
+#if( !${attribute.isCollection()} )
+#if ( ${attribute.isDataset()} )
+    @Basic(optional = ${attribute.isNotMandatory()})
+    @Column(name = "${attribute.getColumnName()}", nullable = ${attribute.isNotMandatory()}, length = ${attribute.getLength()})
+#elseif (${attribute.isJavaBuiltIn()})
+    @Basic()
+#if (${attribute.getType().equals("java.util.Date")})
+    @Temporal(javax.persistence.TemporalType.DATE)
+#end
+    @Column(name = "${attribute.getColumnName()}", nullable = ${attribute.isNotMandatory()}, unique = ${attribute.isUnique()}, length = ${attribute.getLength()}#if(!${attribute.isFixedPoint()}))
+#else
+            , precision = ${attribute.getPrecision()}, scale = ${attribute.getScale()})
+#end##end isFixedPoint
+#elseif (!${attribute.isJavaBuiltIn()})
+    @ManyToOne(optional = ${attribute.isNotMandatory()}, cascade = CascadeType.ALL)
+    @JoinColumn(name = "${this.getIdColumnName(${attribute})}", nullable = ${attribute.isNotMandatory()})
+#else
+    !! Warning !!
+    This will not compile because ${attribute.getName()} attribute is not dataset nor javabuiltin nor notjavabuiltin !
+#end
+#else## Collection :
+#if (${attribute.isJavaBuiltIn()})
+##TODO Doesn't compile !!!!!
+##    @CollectionOfElements
+    @org.apache.openjpa.persistence.PersistentCollection(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+#else
+#if(${attribute.isToMany()})
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinTable(name="${this.getTableName(${attribute})}",
+            joinColumns = {@JoinColumn(name = "${this.getIdTableName()}", referencedColumnName = "id", nullable = false)},
+            inverseJoinColumns = @JoinColumn(name = "${attribute.getTypeAsJavaBusinessObject().getIdTableName()}", referencedColumnName = "id", nullable = ${attribute.isNotMandatory()})
+    )
+#elseif(${attribute.isToOne()})
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinTable(name="${this.getTableName(${attribute})}",
+            joinColumns = {@JoinColumn(name = "${this.getIdTableName()}", referencedColumnName = "id", nullable = false)},
+            inverseJoinColumns = @JoinColumn(name = "${attribute.getTypeAsJavaBusinessObject().getIdTableName()}", referencedColumnName = "id", nullable = ${attribute.isNotMandatory()})
+    )
+    //@OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    //@ElementJoinColumn(name = "${this.getTableName(${attribute})}", referencedColumnName = "id")
+#else
+    !! Warning !!
+    This will not compile because ${attribute.getName()} attribute is not toMany neither toOne !
+#end## end if isToMany()
+#end
+#end
+#if(${attribute.isCollection()})
+    private java.util.Collection<${attribute.getType()}> ${attribute.getName()} = new java.util.ArrayList<${attribute.getType()}>();
+#elseif(${attribute.isJavaBuiltIn()})
+    private ${attribute.getType()} ${attribute.getName()};
+#if(${attribute.isFile()})
+
+    @Transient
+    private SerializableFileIndex ${attribute.getName()}FileIndex;
+#end
+#else
+    private ${attribute.getType()} ${attribute.getName()} = null;
+#end
+
+#end##End attribute loop
+
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// Constructor          section ///////
+////////////////////////////////////////////
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Default constructor for $this.getName()
+    */
+    public $this.getName()() {
+    }
+
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// Business accessors section   ///////
+////////////////////////////////////////////
+
+#foreach ( $attribute in ${this.getAttributes()} )
+#if ( ${attribute.isJavaBuiltIn()} && !${attribute.isCollection()})
+#generateAccessorForSimpleAttribute ( $attribute.getType() $attribute.getName() $attribute.getJavaName() $attribute)
+#if(${attribute.isFile()})
+    public void set${attribute.getJavaName()}FileIndex(final SerializableFileIndex fileIndex) {
+        ${attribute.getName()}FileIndex = fileIndex;
+    }
+
+#end
+#elseif ($attribute.isJavaBuiltIn() && $attribute.isCollection())
+#generateAccessorForCollectionAttribute ( $attribute.getType() $attribute.getName() $attribute.getJavaName() $attribute)
+#elseif ( !$attribute.isJavaBuiltIn() && !$attribute.isCollection())
+#generateAccessorForComplexAttribute ( $attribute.getType() $attribute.getName() $attribute.getJavaName() $attribute)
+#elseif ( !$attribute.isJavaBuiltIn() && $attribute.isCollection())
+#generateAccessorForComplexCollectionAttribute ( $attribute.getType() $attribute.getName() $attribute.getJavaName() $attribute)
+#end## end if
+#end## end for
+
+##    /**
+###parse("common/java_element_copyright.vm")
+##    *
+##    * useful inside the create method on server side..
+##    */
+##    public void setId(Long id) {
+##        this.id = id;
+##    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * useful inside the create method on server side..
+    */
+    public Long getId() {
+        return id;
+    }
+
+
+##    /**
+##    #parse("common/java_element_copyright.vm")
+##    *
+##    * usefull inside the create methode on server side..
+##    */
+##    public void set_ser_LogVersion(long logVersion) {
+##        this.logVersion = logVersion;
+##    }
+##
+##    /**
+##    #parse("common/java_element_copyright.vm")
+##    *
+##    * usefull inside the create methode on server side..
+##    */
+##    public long getLogVersion() {
+##        return logVersion;
+##    }
+##
+##    public long get_ser_LogVersion() {
+##        return getLogVersion();
+##    }
+
+////////////////////////////////////////////
+/////// Compiler put section for you ///////
+/////// toString() section           ///////
+////////////////////////////////////////////
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * toString() will handle all attributes.
+    */
+    public String toString() {
+        final StringBuilder st = new StringBuilder();
+        st.append("\nBusinessObject ${this.getDomainName()}.${this.getName()}\n");
+        st.append("     id : " + id + "\n");
+##        st.append("     log_version : " + logVersion + "\n");
+#foreach ( $attribute in ${this.getAttributes()} )
+#if( ${attribute.isCollection()})
+        st.append("     Collection of " + get${attribute.getJavaName()}().size() + " ${attribute.getType()} ${attribute.getJavaName()} {");
+        st.append("\n");
+        for(${attribute.getType()} milou : get${attribute.getJavaName()}()) {
+            st.append("        "+milou.toString());
+            st.append("\n");
+        }
+        st.append("     }");
+#else
+        st.append("     ${attribute.getType()} ${attribute.getJavaName()} = ");
+        st.append("     "+get${attribute.getJavaName()}());
+#end
+        st.append("\n");
+#end
+        st.append(super.toString());
+        return st.toString();
+    }
+}
+#if($log.debug("[Velocity template debug] end java business object java"))#end
+##
+## Begin macros
+##
+##
+## generateAccessorForComplexCollectionAttribute
+##
+#macro(generateAccessorForComplexCollectionAttribute $type $name $javaName $attribute)
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForComplexCollectionAttribute
+    *
+    * to be written
+    * @param value $type to set ${name}
+    */
+    public void add${javaName}(${type} value) {
+        // TODO Add maximum element control.
+        ${name}.add(value);
+    }
+
+    public void clear${javaName}() {
+        ${name}.clear();
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForComplexCollectionAttribute
+    *
+    * @return Collection of ${type}
+    */
+    public java.util.Collection<${type}> get${javaName}() {
+        // TODO should protect the collection
+        return ${name};
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForComplexCollectionAttribute
+    *
+    */
+    // @param java.util.Collection<$type>
+    public void set${javaName}(java.util.Collection<$type> values) {
+        // TODO should protect the collection
+        //this.${name} = new java.util.ArrayList<$type>(values);
+        this.${name}.clear();
+        this.${name}.addAll(values);
+    }
+
+#end
+## of macro generateAccessorForCollectionAttribute
+##
+## generateAccessorForComplexAttribute
+##
+#macro( generateAccessorForComplexAttribute $type $name $javaName $attribute )
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForComplexAttribute
+    *
+    * simple setter for $name
+    * @param value $type to set $name
+    */
+    public void set$javaName(final $type value) {
+        this.$name = value;
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForComplexAttribute
+    *
+    * simple getter for ${name}
+    * @return ${type}
+    */
+    public ${type} get${javaName}() {
+        return ${name};
+    }
+
+#end
+## End of macro generateAccessorForComplexAttribute
+##
+## generateAccessorForSimpleAttribute
+##
+#macro( generateAccessorForSimpleAttribute $type $name $javaName $attribute )
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForSimpleAttribute
+    *
+    * simple setter for $name
+    * @param value $type to set $name
+    */
+    public void set$javaName(final $type value) {
+        this.$name = value;
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * simple getter for ${name}
+    * @return ${type}
+    */
+    public ${type} get${javaName}() {
+        return ${name};
+    }
+
+#end
+## End of macro generateAccessorForSimpleAttribute
+##
+## generateAccessorForMandatoryAttribute
+##
+#macro( generateAccessorForMandatoryAttribute $type $name $builtin )
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForMandatoryAttribute
+    *
+    * setter for ${name} with mandatory control
+    * @param value ${type} to set ${name}
+    */
+    public void set${name}(${type} value) {
+#if( !${builtin} )
+        if (value == null) {
+            System.err.println("Warning, null value for $name while it supposed to be mandatory");
+        } else {
+#end
+            this.$name = value;
+#if( !${builtin} )
+        }
+#end
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForMandatoryAttribute
+    *
+    * getter for $name with control for mandatory
+    * @return ${type}
+    */
+    public $type get$name() {
+#if( !${builtin} )
+        if ($name == null) {
+            System.err.println("Warning, null value for $name while it supposed to be mandatory");
+        }
+#end
+        return ${name};
+    }
+#end
+## End of macro generateAccessorForMandatoryAttribute
+##
+## generateAccessorForCollectionAttribute
+##
+#macro( generateAccessorForCollectionAttribute $type $name $javaName $attribute )
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForCollectionAttribute
+    *
+    * to be written
+    * @param value $type to set $name
+    */
+    public void add$javaName($type value) {
+        // TODO Add maximum element control.
+        ${name}.add(value);
+    }
+
+    public void clear${javaName}() {
+        ${name}.clear();
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForCollectionAttribute
+    *
+    * @return Collection of $type
+    */
+    public java.util.Collection<$type> get${javaName}() {
+        // TODO should protect the collection
+        return ${name};
+    }
+
+    /**
+#parse("common/java_element_copyright.vm")
+    *
+    * Generated from generateAccessorForCollectionAttribute
+    *
+    */
+    // @param java.util.Collection<$type>
+    public void set${javaName}(java.util.Collection<$type> values) {
+        // TODO should protect the collection
+        ${name} = new java.util.ArrayList<$type>(values);
+    }
+
+#end
+## of macro generateAccessorForCollectionAttribute

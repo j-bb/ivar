@@ -1,0 +1,318 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#parse("/${compiler.getTarget()}/qx_include-formular-fields.vm")
+#parse("/${compiler.getTarget()}/qx_include-check-precondition-field.vm")
+#parse("/${compiler.getTarget()}/qx_include-event-registering-for-computed-field.vm")
+#parse("/${compiler.getTarget()}/qx_include-compute-function.vm")
+###############################
+####### Begin #################
+###############################
+// This screen is ${screen.getKeyname()} [${screen.getCrud()}]
+
+qx.Class.define("${screen.getQxClassName()}", {
+    extend : dolab.fwk.ui.AbstractPane,
+##    include : [qx.locale.MTranslation],
+
+    construct : function(context) {
+        this.base(arguments);
+        this.okButton = null;
+        this.context = context;
+#if(${compiler.isDebug()})
+        dolab.fwk.ui.AbstractPane.DEBUG = true;
+#end
+
+        this.layout = new qx.ui.layout.Grid();
+        this.layout.setSpacing(5);
+        this.layout.setColumnFlex(1, 1);
+        this.layout.setColumnMinWidth(1, ${generator.getLayoutColumnWidth()});
+        this.layout.setColumnWidth(0, ${generator.getLayoutColumnWidth()});
+
+        this.pane = new qx.ui.container.Composite(this.layout);
+        this.pane.seleniumId = "pane";
+#if(${screen.hasFileFields()})
+        this.uploadRegistrar = new dolab.contrib.uploadwidget.UploadFormRegistrar();
+#end
+#foreach ($field in ${screen.getFields()})
+#if(!${field.isBuiltIn()})
+        this._N_${field.getKeyname()}Data = [];
+#end
+#end            
+##
+## SCREEN REFERENCE
+##
+#parse("/${compiler.getTarget()}/qx_include-screenref-in-screen-constructor.vm")
+##
+## END SCREEN REFERENCE
+##
+    },
+
+    members : {
+
+        layout : null,
+        pane : null,
+#if(${screen.hasFileFields()})
+        uploadRegistrar : null,
+#end
+
+        getMenuBar : function() {
+            return null;
+        },
+
+        getInitRequest : function() {
+            return null;
+        },
+
+        getIcon : function() {
+            return "targapp create";
+        },
+
+        afterInitData : function(data) {
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+            this.check${field.getKeynameFirstCapitalized()}PreCondition();
+#end#end
+        },
+
+        getCaption : function() {
+            return "${screen.getTitle()}";
+        },
+
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+
+        check${field.getKeynameFirstCapitalized()}PreCondition : function() {
+## TODO only dependencies !
+#foreach ($field in ${screen.getFields()})#if ($field.isBuiltIn())
+            var ${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end## end if isBuiltIn TODO other collection and not builtin
+#end## end for each field
+            var result = $field.getCondition();
+            this.debug("check${field.getKeynameFirstCapitalized()}PreCondition : " + result);
+
+            var ${field.getKeyname()}FieldElement = this.getWidget('${field.getKeyname()}', 'w');
+            var ${field.getKeyname()}LabelElement = this.getWidget('${field.getKeyname()}', 'l');
+            var length = this.getAllFieldWidgets('${field.getKeyname()}').length;
+
+            if (result) { // Show
+                ${field.getKeyname()}FieldElement.w.setVisibility("visible");
+                ${field.getKeyname()}LabelElement.w.setVisibility("visible");
+                this.getWidget("${field.getKeyname()}", 'w').isNullCandidate = false;
+                for (var i = 0; i < length; i++) {
+                    this.getWidget('${field.getKeyname()}', i).w.setVisibility("visible");
+                }
+            } else { // Hide
+                ${field.getKeyname()}FieldElement.w.setVisibility("excluded");
+                ${field.getKeyname()}LabelElement.w.setVisibility("excluded");
+                this.getWidget("${field.getKeyname()}", 'w').isNullCandidate = true;
+                for (var i = 0; i < length; i++) {
+                    this.getWidget('${field.getKeyname()}', i).setVisibility("excluded");
+                }
+            }
+        },
+#end#end
+
+#computeFunction(${screen})
+
+        doInitUI : function() {
+            var buttonPane = dolab.fwk.ui.AbstractPane.getNewButtonsPanel(
+                [
+                    {lbl:"Ok", cde:this.okAction, ctx:this, keyLstnr:this.contentPane, key:"Enter", seleniumId: "okButton", ico:"ok", silencer:this},
+                    {lbl:"Cancel", cde:this.cancelAction, ctx:this, keyLstnr:this.contentPane, key:"Escape", seleniumId: "cancelButton", ico:"cancel"}
+                ]);
+
+            this.okButton = buttonPane.buttons["okButton"];
+
+            this.contentPane.add(buttonPane, {edge: "south"});
+
+#set($col = 1)
+#set($row = 0)
+#set($colspanfornotcalculated = 2)
+#if($compiler.isDebug())
+#foreach ( $field in ${screen.getFields()} )
+            this.debug("BEFORE Field ${field.getKeyname()} built.");
+#foreach ( $dependency in ${field.getDependencies()} )
+            this.debug("Dependencies for field ${field.getKeyname()} : ${dependency.getKeyname()}");
+#end#end#end
+#foreach ( $field in ${screen.getFields()} )
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#generateFormularForOneField(${field} ${row} ${col}, "create")
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#end## Keep the blank line just before.
+            this.contentPane.add(this.pane, {edge: "center"});
+
+#registerEventForPrecondition(${screen.getFields()})
+
+#eventRegisteringForCoputedField(${screen.getFields()})
+        },
+
+        cancelAction : function() {
+            this.closeForEver();
+        },
+        
+        cascadeOkAction : function() {
+            var _N_${screen.getBusinessObjectName()} = {};
+
+            if (this.checkMandatory()) {
+#foreach ($field in ${screen.getFields()})
+#if ($field.isBuiltIn() && !${field.isCollection()})
+
+                _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end
+#if (!${field.isBuiltIn()} && ${field.isCollection()})
+
+                // Case of not built-in collection
+#if(!${field.hasSmallSelector()})
+                var ${field.getKeyname()}Selections = this._N_${field.getKeyname()}.getTableModel().getData();
+                _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = [];
+                for (var i = 0, ${field.getKeyname()}SelectionsLength = ${field.getKeyname()}Selections.length; i < ${field.getKeyname()}SelectionsLength; i++) {
+                    var ${field.getKeyname()}Id = ${field.getKeyname()}Selections[i][0]; 
+                    for (var j = this._N_${field.getKeyname()}Data.length - 1; j >= 0; j--) {
+                        if (this._N_${field.getKeyname()}Data[j].id == ${field.getKeyname()}Id) {
+                            var _N_${field.getKeyname()} = this._N_${field.getKeyname()}Data[j];
+                            _N_${screen.getBusinessObjectName()}.${field.getKeyname()}.push(_N_${field.getKeyname()});
+                            break;
+                        }
+                    }
+                }
+#else
+                _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}.getSelectedValues();
+#end
+## End of (!${field.isBuiltIn()} && ${field.isCollection()})
+#elseif (!${field.isBuiltIn()} && !${field.isCollection()})
+
+                // Case of not built-in not collection
+#if(!${field.hasSmallSelector()})
+                var ${field.getKeyname()}Selections = this._N_${field.getKeyname()}.getTableModel().getData();
+                if (${field.getKeyname()}Selections.length > 0) {
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}Data;
+                }
+#else
+                _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}.getSelectedValues();
+#end## end !hasSmallSelector
+#end## end of #elseif (!${field.isBuiltIn()} && !${field.isCollection()})
+#if (${field.isCondition()})
+                if (this.getWidget("${field.getKeyname()}", 'w').isNullCandidate) {
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = null;
+                }
+#end
+#end## End of #foreach ($field in ${screen.getFields()})
+            } else {
+                 _N_${screen.getBusinessObjectName()} = null;
+                 if (this.uploadRegistrar) {
+                     this.uploadRegistrar.recount();
+                 }
+            }
+
+            return _N_${screen.getBusinessObjectName()};
+        },
+
+        okAction : function() {
+            if (this.checkConstraints()) {
+#beforeOkAction($screen)
+                var _N_${screen.getBusinessObjectName()} = {};
+
+                if (this.checkMandatory()) {
+#foreach ($field in ${screen.getFields()})
+#if (${field.isBuiltIn()} && !${field.isCollection()})
+
+#if(${field.hasConstraint("hash")})
+                    // Hash the value
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = dolab.fwk.helper.StringHelper.SHA1(this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end());
+#else
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end## end if hasConstraint(hash)
+#end
+#if (!${field.isBuiltIn()})
+
+                    // Case of not built-in
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}Data#else this._N_${field.getKeyname()}.getSelectedValues()#end;
+                    if (_N_${screen.getBusinessObjectName()}.${field.getKeyname()} != null && _N_${screen.getBusinessObjectName()}.${field.getKeyname()}.length <= 0) {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = null;
+                    }
+#end## end of #if (!${field.isBuiltIn()})
+#if (${field.isCondition()})
+                    if (this.getWidget("${field.getKeyname()}", 'w').isNullCandidate) {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = null;
+                    }
+#end
+#end## End of #foreach ($field in ${screen.getFields()})
+                    this.removeNegativeIds();
+                    this.send("Saving new ${screen.getBusinessObjectName()} ...", 
+                        { 
+                            svc:"${application.getPackageName()}.${screen.getBusinessObjectNameFirstCapitalized()}Controller", 
+                            m: "${screen.getExecuteCall().getServerMethodName()}",
+                            p:[_N_${screen.getBusinessObjectName()}]
+                        },
+                        function(data) {
+                            this.closeForEver();
+                        });
+                } else {## End if checkMandatory();
+                    if (this.uploadRegistrar) {
+                        this.uploadRegistrar.recount();
+                    }
+                }
+#afterOkAction($screen)
+            }
+        },
+
+#generateRemoveNegativeIds($screen)
+
+#checkConstraints($screen)
+
+        checkMandatory : function() {
+            var result = true;
+#foreach ($field in ${screen.getFields()})
+#if (!${field.isCalculated()} && ${field.isMandatory()})
+#if (${field.isBuiltIn()} && !${field.isCollection()})
+
+            // Case of built-in and not collection
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Value = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+            if (${field.getKeyname()}Value == null) {
+                    this.highlightWidget('${field.getKeyname()}', true);
+                    result = false;
+            }
+#end
+#if (!${field.isBuiltIn()} && ${field.isCollection()})
+
+            // Case of not built-in and collection
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Selections =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}.getTableModel().getData()#else this._N_${field.getKeyname()}.getSelection()#end;
+            if (${field.getKeyname()}Selections == null || ${field.getKeyname()}Selections.length == 0) {
+                this.highlightWidget('${field.getKeyname()}', true);
+                result = false;
+            }
+#end
+#if (!${field.isBuiltIn()} && !${field.isCollection()})
+
+            // Case of not built-in and not collection
+            // Field ${field.getKeyname()}
+            // js variable : this._N_${field.getKeyname()} 
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Value =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}.getTableModel().getData()#else this._N_${field.getKeyname()}.getSelectedValues()#end;
+            if (${field.getKeyname()}Value == null#if(!${field.hasSmallSelector()}) || ${field.getKeyname()}Value.length <= 0#end) {
+                this.highlightWidget('${field.getKeyname()}', true);
+                result = false;
+            }
+#end
+#end## End if field.isMandatory
+#end## End of #foreach ($field in ${screen.getFields()})
+            return result;
+        }
+    }
+});

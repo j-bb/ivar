@@ -1,0 +1,62 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+##########################
+#macro(registerEventForPrecondition $fields)
+            //
+            // Event registering for field with pre condition check if any :
+            //
+#foreach ($field in $fields)
+#if (${field.isCondition()})
+#foreach ($onefield in $fields)
+#foreach ($dependency in ${onefield.getDependencies()})
+#if (${dependency.getKeyname().equals(${field.getKeyname()})})
+            // ${onefield.getKeyname()} is a needed dependency to compute ${field.getKeyname()}.
+#if (${onefield.isDataset()})
+            this._N_${onefield.getKeyname()}.addListener("changeSelection", function(e) {
+#else
+            this._N_${onefield.getKeyname()}.addListener("changeValue", function(e) {
+#end
+#if(${compiler.isDebug()})
+                this.debug("[EVENT] ${onefield.getKeyname()} has changed ! recheck precondition for ${field.getKeyname()}.");
+#end
+                this.check${field.getKeynameFirstCapitalized()}PreCondition();
+            }, this);
+#end
+#end
+#end
+#end
+#end
+#end
+##########################
+#macro(checkConstraints $screen)
+        checkConstraints : function() {
+            var result = true;
+#foreach ($field in ${screen.getFields()})
+#if(${field.isNumberKind()} || ${field.isTemporal()})##switch type
+            result = this._N_${field.getKeyname()}.checkBounds(this, "${field.getName()}") && result;
+#if(${field.isNumber()} || ${field.isReal()})
+            result = this._N_${field.getKeyname()}.checkLengths(this, "${field.getName()}") && result;
+#end
+#elseif(${field.isTextual()})##switch type
+            result = this._N_${field.getKeyname()}.checkConstraints(this, "${field.getName()}") && result;
+#elseif(${field.isFile()})##switch type
+            result = this._N_${field.getKeyname()}.getAttachedField().getTextField().checkConstraints(this, "${field.getName()}") && result;
+#end##end switch type
+#end##end foreach field
+            return result;
+        },
+#end

@@ -1,0 +1,72 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+qx.Class.define("${screen.getQxClassName()}", {
+
+    extend : dolab.fwk.ui.AbstractPane,
+
+    construct : function() {
+        this.base(arguments);
+#if(${compiler.isDebug()})
+        dolab.fwk.ui.AbstractPane.DEBUG = true;
+#end
+##
+## SCREEN REFERENCE
+##
+#parse("/${compiler.getTarget()}/qx_include-screenref-in-screen-constructor.vm")
+##
+## END SCREEN REFERENCE
+##
+
+#foreach ($field in ${screen.getFields()})
+#if(!${field.isScreenReference()})
+        // ERROR ERROR ERROR ERROR
+        this.error("The field ${field.getKeyname()} is not a screen reference and so has nothing to do in that *pure* composition screen !");
+#end#end
+    },
+
+    members : {
+        afterInitData : function(data) {
+        },
+
+        getCaption : function() {
+            return "${screen.getTitle()}";
+        },
+
+        doInitUI : function() {
+
+            var layout = new qx.ui.layout.Grid();
+            layout.setSpacing(5);
+            layout.setColumnFlex(0, 1);
+
+            var pane = new qx.ui.container.Composite(layout);
+            pane.seleniumId = "pane";
+
+#set($row = 0)
+#set($col = 0)
+#foreach ($field in ${screen.getFields()})
+#if(${field.isScreenReference()})
+
+            // ${field.getKeyname()}
+            pane.add(this.subPanes["${field.getKeyname()}"].contentPane, {row: ${row}, column: ${col}});
+            layout.setRowFlex(${row}, 1);
+#end
+#set($row = ${row} + 1)
+#end
+            this.contentPane.add(pane, {edge: "center"});
+        }
+    }
+});

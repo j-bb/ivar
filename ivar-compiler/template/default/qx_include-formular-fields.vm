@@ -1,0 +1,1334 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#parse("/${compiler.getTarget()}/qx_include-filemacros.vm")
+###############################
+####### Begin #################
+###############################
+
+###############################
+####### Begin macros ##########
+###############################
+###############################
+####### generateFormularForOneField
+#######
+####### !! Warning !! this macro can be called with ScreenField or businessObjectAttribute instances !
+###############################
+#macro(generateFormularForOneField $screenField $row $col $crud)
+#if(${screenField.isCalculated()})
+#set($row = $row + 1)
+#end
+#if(${crud.equals("read")} || ${crud.equals("search")})
+#set($readonly = true)
+#else
+#set($readonly = false)
+#end
+#set($jumpRow=$row)
+// Generated from macro generateFormularForOneField (ScreenField) CLASS IS ${screenField.getClass().getName()}. Step type for debug purpose : ${screenField.getStepTypeForDebug()}
+#if(${screenField.isScreenReference()} || ${screenField.isData()})
+##
+## SCREEN REFERENCE
+##
+#if(${screenField.isScreenReference()})
+            // ${screenField.getKeyname()}. This is a Screen reference to ${screenField.getReferencedScreen().getQxClassName()}
+#else
+            // ${screenField.getKeyname()}. This is a Data reference to ${screenField.getDataTargetBusinessObject()}
+#end
+#if(!${screenField.hasSmallSelector()})
+#qxtableForReferenceScreen(${screenField})
+#else
+#set($smallSelector = ${screenField.getSmallSelector()})
+#if(${smallSelector.isSmall()})
+#if(${screenField.isCollection()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.DoubleList()")
+#else
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.SelectBox(null, null, true)")
+#end
+#foreach($referencedField in ${screenField.getReferencedScreen().getFields()})
+            this._N_${screenField.getKeyname()}.setLabelWhenSelected("${referencedField.getDataKeyname()}");
+#break##TODO step concatenation...
+#end
+#else## Xsmall
+#if(${screenField.isMandatory()} && !${screenField.isCollection()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.RadioButtons()")
+#else
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.CheckBoxes()")
+            this._N_${screenField.getKeyname()}.setMultiple(${screenField.isCollection()});
+#end
+#end
+#foreach($referencedField in ${smallSelector.getTargetScreen().getFields()})
+            this._N_${screenField.getKeyname()}.setLabelKey("${referencedField.getDataKeyname()}");
+#break##TODO step concatenation...
+#end
+            this._N_${screenField.getKeyname()}.send("Requiring selector data...", {
+                    svc : "${application.getPackageName()}.${smallSelector.getTargetScenario().getAssociatedScreen().getBusinessObjectNameFirstCapitalized()}Controller",
+                    m : "${smallSelector.getTargetScenario().getAssociatedScreen().getPrepareCall().getServerMethodName()}",
+                    p : [#if(${smallSelector.isXSmall()})${generator.getQueryLimitForXSmallSelector()}#else${generator.getQueryLimitForSmallSelector()}#end]
+                }, this._N_${screenField.getKeyname()}.setModel);
+#end
+#if(${screenField.hasDefaultDeletor()})
+            this._N_${screenField.getKeyname()}.addListener("changeSelection", function() {
+                    var id = this._N_${screenField.getKeyname()}.getSelectedId();
+                    if (id == null || id > 0) {
+                        this.${screenField.getKeyname()}DefaultDeleteButton.setVisibility("excluded");
+                    } else {
+                        this.${screenField.getKeyname()}DefaultDeleteButton.setVisibility("visible");
+                    }
+                }, this);
+#if(!${screenField.hasSmallSelector()})
+            this._N_${screenField.getKeyname()}TableModel.addListener("dataChanged", function(e) {
+                    this._N_${screenField.getKeyname()}.resetCellFocus();
+                    this._N_${screenField.getKeyname()}.resetSelection();
+                    this.${screenField.getKeyname()}DefaultDeleteButton.setVisibility("excluded");
+                }, this);
+#end
+#end
+##set($row = ${row} + 1)
+##
+## END SCREEN REFERENCE
+##
+#elseif (${screenField.isDataset()})
+#generateDatasetField(${screenField})
+#elseif (${screenField.isText()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.TextField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#end
+#elseif (${screenField.isPassword()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.PasswordField")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#end
+#elseif (${screenField.isBoolean()})
+#qxsimplefield(${screenField} "qx.ui.form.CheckBox()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+#end
+#elseif (${screenField.isNumber()})
+            // ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setCellAlign(${row}, 0, "right", "center");
+
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.form.NumberField();
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            if (this.isDotDecimalSeparator()) {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9\.-]/);
+            } else {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9,-]/);
+            }
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}#if (!${screenField.isCalculated()}), colSpan: ${colspanfornotcalculated}#end});
+#if(${screenField.hasTooltip()})
+            // Tooltip for ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("${screenField.getTooltip()}");
+#if(${screenField.hasRichTooltip()})
+            this._N_${screenField.getKeyname()}Tooltip.setRich(true);
+#end
+            this._N_${screenField.getKeyname()}.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+            this._N_${screenField.getKeyname()}Label.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+#end
+            var ${screenField.getKeyname()}ErrWidget = this._N_${screenField.getKeyname()}.getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : ${col} + 1 + ${colspanfornotcalculated} });
+#set($row = ${row} +1)
+#elseif (${screenField.isMultitext()})
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("left");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, 0, "right", "center");
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.form.TextArea();
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+            var ${screenField.getKeyname()}ErrWidget = this._N_${screenField.getKeyname()}.getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : 1});
+#set($row = ${row} +1)
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            this._N_${screenField.getKeyname()}.addListener("focus", function() {
+                this.addSilentKey("Enter");
+            }, this);
+            this._N_${screenField.getKeyname()}.addListener("blur", function() {
+                this.removeSilentKey("Enter");
+            }, this);
+#end
+            this.layout.setRowFlex(${row}, 1);
+            this._N_${screenField.getKeyname()}.setMinHeight(100);
+##            this.pane.add(this._N_${screenField.getKeyname()}, {row: ${row}, column: 0, colSpan: 2});
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: 0, colSpan : 2});
+#set($row = ${row} +1)
+#elseif (${screenField.isFormatedtext()})
+#elseif (${screenField.isInteger()})
+            // ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "right", "center");
+
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.form.NumberField();
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            this._N_${screenField.getKeyname()}.setFilter(/[0-9-]/);
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}#if (!${screenField.isCalculated()}), colSpan: ${colspanfornotcalculated}#end});
+#if(${screenField.hasTooltip()})
+            // Tooltip for ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("${screenField.getTooltip()}");
+#if(${screenField.hasRichTooltip()})
+            this._N_${screenField.getKeyname()}Tooltip.setRich(true);
+#end
+            this._N_${screenField.getKeyname()}.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+            this._N_${screenField.getKeyname()}Label.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+#end
+            var ${screenField.getKeyname()}ErrWidget = this._N_${screenField.getKeyname()}.getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : ${col} + 1 + ${colspanfornotcalculated} });
+#set($row = ${row} +1)
+#elseif (${screenField.isReal()})
+            // ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getName()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "right", "center");
+
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.form.NumberField();
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            if (this.isDotDecimalSeparator()) {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9\.-]/);
+            } else {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9,-]/);
+            }
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}#if (!${screenField.isCalculated()}), colSpan: ${colspanfornotcalculated}#end});
+#if(${screenField.hasTooltip()})
+            // Tooltip for ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("${screenField.getTooltip()}");
+#if(${screenField.hasRichTooltip()})
+            this._N_${screenField.getKeyname()}Tooltip.setRich(true);
+#end
+            this._N_${screenField.getKeyname()}.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+            this._N_${screenField.getKeyname()}Label.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+#end
+            var ${screenField.getKeyname()}ErrWidget = this._N_${screenField.getKeyname()}.getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : ${col} + 1 + ${colspanfornotcalculated} });
+#set($row = ${row} +1)
+#elseif (${screenField.isAmount()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.NumberField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            if (this.isDotDecimalSeparator()) {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9\.-]/);
+            } else {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9,-]/);
+            }
+#end
+#elseif (${screenField.isPercentile()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.NumberField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setReadOnly(true);
+#else
+            if (this.isDotDecimalSeparator()) {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9\.-]/);
+            } else {
+                this._N_${screenField.getKeyname()}.setFilter(/[0-9,-]/);
+            }
+#end
+#elseif (${screenField.isFile()})
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getName()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+
+#if(!${readonly})
+            this._N_${screenField.getKeyname()} = new dolab.contrib.uploadwidget.UploadForm("${screenField.getKeyname()}", "file.upload");
+            this._N_${screenField.getKeyname()}.setParameter("businessObject", "${screenField.getScreen().getBusinessObjectName()}");
+            this._N_${screenField.getKeyname()}.setParameter("field", "${screenField.getKeyname()}");
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getMaxImageSizeFormular()});
+#if(${screenField.isImage()})
+            this._N_${screenField.getKeyname()}.setExtensions([".png", ".jpg", ".gif", ".jpeg"]);
+#end
+
+            var uploadField = new dolab.contrib.uploadwidget.UploadField("${screenField.getKeyname()}", "Select file...");
+            this.uploadRegistrar.addForm(this._N_${screenField.getKeyname()}, uploadField);
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}});
+            var ${screenField.getKeyname()}ErrWidget = uploadField.getTextField().getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : ${col} + 1 + ${colspanfornotcalculated} });
+#if($crud.equals("update"))
+#if(${screenField.isImage()})
+            this._N_${screenField.getKeyname()}Image = new qx.ui.basic.Image();
+            var that = this;
+            this._N_${screenField.getKeyname()}.addListener("idSet",
+                function () {
+#imageRequest("that._N_${screenField.getKeyname()}.getValue()" "that._N_${screenField.getKeyname()}Image")  
+                }, this);
+            this._N_${screenField.getKeyname()}Image.addListener("click",
+                function(e) {
+                    if (e.isLeftPressed()) {
+#fileRequest("this._N_${screenField.getKeyname()}.getValue()")
+                    }
+                }, this);
+#set($row = $row + 1)
+            this.pane.add(this._N_${screenField.getKeyname()}Image, {row : $row, column : 1, colSpan : 2});
+            this._N_${screenField.getKeyname()}Image.setAllowStretchX(false, true);
+            this._N_${screenField.getKeyname()}Image.setAllowStretchY(false, true);
+#else
+            var ${screenField.getKeyname()}Button = new qx.ui.form.Button("View file", dolab.fwk.ui.IconManager.getIcon("upl application", "minitool"));
+            ${screenField.getKeyname()}Button.setEnabled(false);
+            ${screenField.getKeyname()}Button.addListener("execute",
+                function () {
+#fileRequest("this._N_${screenField.getKeyname()}.getValue()")
+                }, this);
+            this._N_${screenField.getKeyname()}.addListener("idSet",
+                function () {
+                    ${screenField.getKeyname()}Button.setEnabled(true);
+                }, this);
+            ${screenField.getKeyname()}Button.setMaxWidth(${generator.getFixColumnSize()});
+            this._N_${screenField.getKeyname()}.add(${screenField.getKeyname()}Button);
+#end##end screenField is image
+#end
+#else## if readonly
+#if(${screenField.isImage()})
+            this._N_${screenField.getKeyname()} = new qx.ui.basic.Image();
+            var that = this;
+            this._N_${screenField.getKeyname()}.setId =
+                function(id) {
+                    this.id = id;
+                    if (id != null) {
+#imageRequest("id" "this")                    
+                    } else {
+                        this.setSource(null);
+                    }
+                }
+            this._N_${screenField.getKeyname()}.addListener("click",
+                function(e) {
+                    if (e.isLeftPressed()) {
+#fileRequest("this._N_${screenField.getKeyname()}.id")
+                    }
+                }, this);
+            this._N_${screenField.getKeyname()}.setAllowStretchX(false, true);
+            this._N_${screenField.getKeyname()}.setAllowStretchY(false, true);
+#else
+            this._N_${screenField.getKeyname()} = new qx.ui.form.Button("View file", dolab.fwk.ui.IconManager.getIcon("upl application", "minitool"));
+            this._N_${screenField.getKeyname()}.addListener("execute",
+                function () {
+#fileRequest("this._N_${screenField.getKeyname()}.id")
+                }, this);
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+            this._N_${screenField.getKeyname()}.setId =
+                function(id) {
+                    this.id = id;
+                    if (id != null) {
+                        this.setEnabled(true);
+                    } else {
+                        this.setEnabled(false);
+                    }
+                };
+#end
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row},#if(${screenField.isImage()}) column: 1, colSpan: 2#else column: ${col}#end});            
+#end
+#set($row = $row + 1)
+#elseif (${screenField.isDate()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.DateField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+#elseif (${screenField.isTime()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.DateField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+#elseif (${screenField.isDateTime()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.form.DateField()")
+#if(${readonly} == true)
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+#end
+            this._N_${screenField.getKeyname()}.setMaxWidth(${generator.getFixColumnSize()});
+#elseif (!${screenField.isBuiltIn()})
+#if (${screenField.isCollection()})
+
+            // ${screenField.getKeyname()} is is a not builtin collection
+#qxtable (${screenField})
+
+            this._N_${screenField.getKeyname()}.getSelectionModel().setSelectionMode(qx.ui.table.selection.Model.MULTIPLE_INTERVAL_SELECTION);
+#else
+
+            // ${screenField.getKeyname()} is is a not builtin not collection
+##            this.pane.add(new qx.ui.basic.Label("${screenField.getName()}"), {row: r, column: 0});
+##
+##            this._N_${screenField.getKeyname()} = new qx.ui.basic.Atom("Not ready yet !", dolab.fwk.ui.IconManager.getInstance().getIcon("field wrn", "icon"));
+##            var ${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("Case of not built in and not collection, OneToOne", dolab.fwk.ui.IconManager.getInstance().getIcon("field wrn", "icon"));
+##            this._N_${screenField.getKeyname()}.setToolTip(${screenField.getKeyname()}Tooltip);
+##            this.pane.add(this._N_${screenField.getKeyname()}, {row: r, column: col#if (!${screenField.isCalculated()}), colSpan: colspanfornotcalculated#end});
+##            #set($row = ${row} +1)
+#qxtable (${screenField})
+
+            this._N_${screenField.getKeyname()}.getSelectionModel().setSelectionMode(qx.ui.table.selection.Model.SINGLE_SELECTION);
+#end## End of #IF isCollection()
+#else## Case of unknown type :
+            this._N_${screenField.getKeyname()} = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");  
+            this._N_${screenField.getKeyname()}.setAlignX("right");
+            this.pane.add(this._N_${screenField.getKeyname()}, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "right", "center");
+
+            this._N_${screenField.getKeyname()} = new qx.ui.basic.Atom("Unknown type '${screenField.getType()}'", dolab.fwk.ui.IconManager.getIcon("field err", "icon"));
+            var ${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("Unknown type for field keyname = '${screenField.getKeyname()}', field name =  '${screenField.getName()}',  field type is '${screenField.getType()}', \n${screenField.getDebugInfo()}", dolab.fwk.ui.IconManager.getIcon("field err", "icon"));
+            this._N_${screenField.getKeyname()}.setToolTip(${screenField.getKeyname()}Tooltip);
+            this.pane.add(this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}#if (!${screenField.isCalculated()}), colSpan: ${colspanfornotcalculated}#end});
+#set($row = ${row} +1)
+#end
+#########################
+###### Constraints ######
+#########################
+#if(${crud.equals("update")} && ${screenField.hasConstraint("hash")})
+            this._N_${screenField.getKeyname()}.addListener("ChangeValue",
+                function() {
+                    this._N_${screenField.getKeyname()}HasNewValue = true;
+                    this.debug("ValueChange on ${screenField.getKeyname()} " + this._N_${screenField.getKeyname()}.getValue());
+                }, this);
+#end
+#if(!${readonly})
+#if(${screenField.hasConstraint("defaultValue")})
+#set($defVal = ${screenField.getEscapedConstraint("defaultValue")})
+            this._N_${screenField.getKeyname()}.setValue(#if(${screenField.isBoolean()})!!$defVal#else"$defVal"#end);
+#end##end defaultValue
+#if(${screenField.isNumberKind()})## real || integer || number
+
+#if(${screenField.hasConstraint("maxValue")})
+            this._N_${screenField.getKeyname()}.setMaxValue(${screenField.getConstraint("maxValue")});
+#end
+#if(${screenField.hasConstraint("minValue")})
+            this._N_${screenField.getKeyname()}.setMinValue(${screenField.getConstraint("minValue")});
+#end
+#if(${screenField.hasConstraint("positive")} && ${screenField.getConstraint("positive")})
+            this._N_${screenField.getKeyname()}.setForce(1); // Only positive values
+#elseif(${screenField.hasConstraint("negative")} && ${screenField.getConstraint("negative")})
+            this._N_${screenField.getKeyname()}.setForce(-1); // Only negative values
+#elseif(${screenField.hasConstraint("nonzero")} && ${screenField.getConstraint("nonzero")})
+            this._N_${screenField.getKeyname()}.setForce(0); // Only non-zero values
+#end##end force positive/negative/non-zero
+
+#if(${screenField.isReal()} || ${screenField.isNumber()})
+#if(${screenField.hasConstraint("precision")})
+            this._N_${screenField.getKeyname()}.setPrecision(${screenField.getConstraint("precision")});
+#end
+#if(${screenField.hasConstraint("scale")})
+            this._N_${screenField.getKeyname()}.setScale(${screenField.getConstraint("scale")});
+#end
+#end##end real || number
+#end##end numberKind
+#if((${screenField.isTextual()} || ${screenField.isFile()}))
+#if(${screenField.hasConstraint("regex")})
+            this._N_${screenField.getKeyname()}#if(${screenField.isFile()}).getAttachedField().getTextField()#end.setRegex(/#if(${screenField.isFile()})C:\\fakepath\\\\#end${screenField.getConstraint("regex")}/);
+#end
+#if(${screenField.hasConstraint("length")})
+            this._N_${screenField.getKeyname()}#if(${screenField.isFile()}).getAttachedField().getTextField()#end.setMaxLength(${screenField.getConstraint("length")});
+#end
+#end##end textual || file
+#if(${screenField.isTemporal()})
+#if(${screenField.hasConstraint("before")})
+            this._N_${screenField.getKeyname()}.setBefore(new Date(${screenField.getConstraint("before").getTime()}));
+#end
+#if(${screenField.hasConstraint("after")})
+            this._N_${screenField.getKeyname()}.setAfter(new Date(${screenField.getConstraint("after").getTime()}));
+#end
+#end##end temporal
+#if(${screenField.hasConstraint("errorMessage")})
+#set($message = ${screenField.getEscapedConstraint("errorMessage")})
+            this._N_${screenField.getKeyname()}#if(${screenField.isFile()}).getAttachedField().getTextField()#end.setErrorMessage("$message");
+#end
+#end##end !readonly
+#if(${screenField.hasConstraint("dateFormat")})
+#set($format = ${screenField.getEscapedConstraint("dateFormat")})
+            this._N_${screenField.getKeyname()}.setDateFormat(new qx.util.format.DateFormat("$format"));
+#end##end dateFormat
+#########################
+#### Constraints end ####
+#########################
+#if(${screenField.isCalculated()})
+            this._N_${screenField.getKeyname()}.setEnabled(false);
+##            var ${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("${screenField.getName()} is is automatically computed.");
+##            this._N_${screenField.getKeyname()}.setToolTip(${screenField.getKeyname()}Tooltip);
+
+##            var ${screenField.getKeyname()}Header = new qx.ui.container.Composite(new qx.ui.layout.Dock(10, 5));
+##            ${screenField.getKeyname()}Header.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Header";
+##            var ${screenField.getKeyname()}Toolbar = new qx.ui.container.Composite(new qx.ui.layout.HBox(5, "right"));
+##            ${screenField.getKeyname()}Toolbar.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Toolbar";
+            var ${screenField.getKeyname()}Icon = new qx.ui.basic.Image(dolab.fwk.ui.IconManager.getIcon("field rsh", "minitool"));
+            ${screenField.getKeyname()}Icon.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Icon";
+            ${screenField.getKeyname()}Icon.setToolTip(new qx.ui.tooltip.ToolTip("${screenField.getName()} : refresh value"));
+            ${screenField.getKeyname()}Icon.addListener("click",
+                function(e) {
+                    try {
+                        this._N_${screenField.getKeyname()}.setValue(this.compute${screenField.getKeynameFirstCapitalized()}());
+                    } catch (err) {
+                        this.debug("[${screen.getKeyname()}] Cannot compute ${screenField.getKeyname()}. It failed when call compute${screenField.getKeynameFirstCapitalized()}() : " + err);
+                    }
+                }, this);
+##            ${screenField.getKeyname()}Toolbar.add(${screenField.getKeyname()}Icon);
+##            ${screenField.getKeyname()}Header.add(${screenField.getKeyname()}Toolbar);
+#set($thisrow = ${row} - 1)
+##            this.addWidget(this.pane, '${screenField.getKeyname()}', 'h', ${screenField.getKeyname()}Header, {row: ${thisrow}, column: 1});
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'h', ${screenField.getKeyname()}Icon, {row: ${thisrow}, column: 2});
+
+#end## End of #if calculated
+#if($compiler.isDebug())
+            this.debug("AFTER Field ${screenField.getKeyname()} built.");
+#end
+            //
+            // JUMP from a screenField (macro generateFormularForOneField)
+            //
+
+#jump(${screenField} ${jumpRow})
+#end## End of macro
+###############################
+####### qxsimplefield
+###############################
+#macro (qxsimplefield $field $widget)
+
+            // ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "right", "center");
+            this._N_${screenField.getKeyname()} = new ${widget};
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: ${col}#if (!${screenField.isCalculated()}), colSpan: ${colspanfornotcalculated}#end});
+#if(${screenField.hasTooltip()})
+            // Tooltip for ${screenField.getKeyname()}
+            this._N_${screenField.getKeyname()}Tooltip = new qx.ui.tooltip.ToolTip("${screenField.getTooltip()}");
+#if(${screenField.hasRichTooltip()})
+            this._N_${screenField.getKeyname()}Tooltip.setRich(true);
+#end
+            this._N_${screenField.getKeyname()}.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+            this._N_${screenField.getKeyname()}Label.setToolTip(this._N_${screenField.getKeyname()}Tooltip);
+#end
+#if(!${screenField.isBoolean()} && !${screenField.isDataset()} && !${screenField.isScreenReference()})
+            var ${screenField.getKeyname()}ErrWidget = this._N_${screenField.getKeyname()}.getErrorWidget();
+            ${screenField.getKeyname()}ErrWidget.seleniumId = "${screenField.getKeyname()}ErrorFlag";
+            this.pane.add(${screenField.getKeyname()}ErrWidget, { row : ${row}, column : ${col} + 1 + ${colspanfornotcalculated} });
+#end##end !boolean && !dataset && !screenref
+#set($row = ${row} +1)
+#end
+###############################
+####### qxtable
+###############################
+#macro (qxtable $screenField)
+#if (${screenField.isBuiltIn()})
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getName()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+#else
+            this._N_${screenField.getKeyname()}Label = new qx.ui.basic.Label("${screenField.getNameFirstCapitalized()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Label.setAlignX("right");
+            this._N_${screenField.getKeyname()}Label.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Label";
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'l', this._N_${screenField.getKeyname()}Label, {row: ${row}, column: 0});
+#end
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "left", "center");
+#set($row = ${row} +1)
+
+            this.layout.setRowFlex(${row}, 1);
+            this._N_${screenField.getKeyname()}TableModel = new qx.ui.table.model.Simple();
+
+            var ${screenField.getKeyname()}Columns = [
+                "id"
+#set($first = "true")#set($empty = "true")#foreach ($fieldAttribute in ${screenField.getAttribute().getType().getBusinessObject().getAttributes()})#if ($first == "true"),#set($first = "false")#set($empty = "false")#else                ,#end
+                "${fieldAttribute.getName()}"
+#end
+            ];
+            this._N_${screenField.getKeyname()}TableModel.setColumns(${screenField.getKeyname()}Columns);
+
+            for (var i = 0, columnsLength = ${screenField.getKeyname()}Columns.length; i < columnsLength; i++) {
+                this._N_${screenField.getKeyname()}TableModel.setColumnEditable(i, false);
+                this._N_${screenField.getKeyname()}TableModel.setColumnSortable(i, true);
+            }
+
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.table.Table(this._N_${screenField.getKeyname()}TableModel);
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+            this._N_${screenField.getKeyname()}.getTableColumnModel().setColumnVisible(0, false);
+
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'w', this._N_${screenField.getKeyname()}, {row: ${row}, column: 0, colSpan: 2});
+##            this.pane.add(this._N_${screenField.getKeyname()}, {row: r, column: 0, colSpan: 2});
+
+##TODO gros hack qui pue !
+#if(${screenField.getClass().getName().equals("dolab.metamodel.target.generic.ui.ScreenField")})
+            var ${screenField.getKeyname()}Header = new qx.ui.container.Composite(new qx.ui.layout.Dock(10, 5));
+            ${screenField.getKeyname()}Header.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Header";
+            var ${screenField.getKeyname()}Toolbar = new qx.ui.container.Composite(new qx.ui.layout.HBox(5, "right"));
+            ${screenField.getKeyname()}Toolbar.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Toolbar";
+            var ${screenField.getKeyname()}Icon = new qx.ui.basic.Image(dolab.fwk.ui.IconManager.getIcon("field rsh", "minitool"));
+            ${screenField.getKeyname()}Icon.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Icon";
+            ${screenField.getKeyname()}Icon.setToolTip(new qx.ui.tooltip.ToolTip("${screenField.getKeyname()} : refresh value"));
+            ${screenField.getKeyname()}Icon.addListener("click", function(e) {
+                this.refresh${screenField.getAttribute().getNameFirstCapitalized()}();
+            }, this);
+            ${screenField.getKeyname()}Toolbar.add(${screenField.getKeyname()}Icon);
+            ${screenField.getKeyname()}Header.add(${screenField.getKeyname()}Toolbar);
+#set($thisrow = ${row} - 1)
+            this.addWidget(this.pane, '${screenField.getKeyname()}', 'h', ${screenField.getKeyname()}Header, {row: ${thisrow}, column: 1});
+            this.refresh${screenField.getAttribute().getNameFirstCapitalized()}();
+#end
+#set($row = ${row} +1)
+#end## End macro qxtable
+###############################
+####### qxtableForReferenceScreen
+###############################
+#macro (qxtableForReferenceScreen $screenField)
+            // Generated from ${hash}qxtableForReferenceScreen
+            // ScreenField is ${screenField.getKeyname()}
+            // ScreenField class is ${screenField.getClass().getName()}
+            // CRUD is ${crud}
+
+            this._N_${screenField.getKeyname()}Group = new qx.ui.groupbox.GroupBox("${screenField.getNameFirstCapitalized()}#if(${screenField.isMandatory()} && !${screenField.isCalculated()}) *#end");
+            this._N_${screenField.getKeyname()}Group.setLayout(new qx.ui.layout.Dock());
+## CELL LAYOUT IN GRID LAYOUT
+##            this.layout.setRowAlign(${row}, "left", "center");
+#set($row = ${row} +1)
+
+#if(${screenField.isCollection()})
+            this.layout.setRowFlex(${row}, 1);
+###else
+##            this._N_${screenField.getKeyname()}Group.setMinHeight(100);
+##            this._N_${screenField.getKeyname()}Group.setMaxHeight(175);
+#end
+            this._N_${screenField.getKeyname()}TableModel = new qx.ui.table.model.Simple();
+
+            var ${screenField.getKeyname()}Columns = [
+                "id"
+#if(${screenField.isScreenReference()})
+#set($first = "true")#set($empty = "true")#foreach ($referenceField in ${screenField.getReferencedScreen().getFields()})#if ($first == "true"),#set($first = "false")#set($empty = "false")#else                ,#end
+                "${referenceField.getName()}"
+#end## End foreach
+#elseif(${screenField.isData()})
+#set($first = "true")#set($empty = "true")#foreach ($fieldAttribute in ${screenField.getAttribute().getType().getBusinessObject().getAttributes()})#if ($first == "true"),#set($first = "false")#set($empty = "false")#else                ,#end
+                "${fieldAttribute.getName()}"
+#end
+#end
+            ];
+
+            this._N_${screenField.getKeyname()}TableModel.setColumns(${screenField.getKeyname()}Columns);
+
+            for (var i = 0, columnsLength = ${screenField.getKeyname()}Columns.length; i < columnsLength; i++) {
+                this._N_${screenField.getKeyname()}TableModel.setColumnEditable(i, false);
+                this._N_${screenField.getKeyname()}TableModel.setColumnSortable(i, true);
+            }
+
+            this._N_${screenField.getKeyname()} = new dolab.fwk.ui.table.Table(this._N_${screenField.getKeyname()}TableModel);
+            this._N_${screenField.getKeyname()}.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Widget";
+            this._N_${screenField.getKeyname()}.getTableColumnModel().setColumnVisible(0, false);
+#if (!${crud.equals("update")} && ${screenField.isCollection()})
+            this._N_${screenField.getKeyname()}.getSelectionModel().setSelectionMode(qx.ui.table.selection.Model.MULTIPLE_INTERVAL_SELECTION);
+#elseif(${crud.equals("update")})
+            this._N_${screenField.getKeyname()}.getSelectionModel().setSelectionMode(qx.ui.table.selection.Model.NO_SELECTION);
+#end
+            this.pane.add(this._N_${screenField.getKeyname()}Group, {row: ${row}, column: 0, colSpan: 2});
+#if(${screenField.isCollection()})
+            this.layout.setRowFlex(${row}, 1);
+#else
+            this._N_${screenField.getKeyname()}.setMaxHeight(60#if(${screenField.getReferencedScreen().hasImageFields()}) + 34#end);
+#end
+#set($hasRenderer = false)
+#if(${screenField.getReferencedScreen().hasBooleanFields()})
+            var booleanRenderer = new qx.ui.table.cellrenderer.Boolean();
+#set($hasRenderer = true)
+#end
+#if(${screenField.getReferencedScreen().hasFileFields()})
+#set($hasRenderer = true)
+            var renderer = new qx.ui.table.cellrenderer.Image(16, 16);
+#if(${screenField.getReferencedScreen().hasImageFields()})
+            var imgRenderer = new qx.ui.table.cellrenderer.Html();
+            this._N_${screenField.getKeyname()}.setRowHeight(${generator.getMaxImageSizeTabular()});
+#end
+#end
+
+#if($hasRenderer)
+            for (var i = 0; i < ${screenField.getKeyname()}Columns.length; i++) {
+#foreach($referenceField in ${screenField.getReferencedScreen().getFields()})
+#if(${referenceField.isFile()})
+                if (${screenField.getKeyname()}Columns[i] == "${referenceField.getName()}") {
+#if(${referenceField.isImage()})
+                    this._N_${screenField.getKeyname()}.getTableColumnModel().setDataCellRenderer(i, imgRenderer);
+#else
+                    this._N_${screenField.getKeyname()}.getTableColumnModel().setDataCellRenderer(i, renderer);
+#end
+                    var columnIndex = i;
+#fileCellEvents("columnIndex" "this._N_${screenField.getKeyname()}" "${referenceField.getDataKeyname()}" "this._N_${screenField.getKeyname()}Data" ${screenField.isCollection()})
+                }
+#end
+#if(${referenceField.isBoolean()})
+                if (${screenField.getKeyname()}Columns[i] == "${referenceField.getName()}") {
+                    this._N_${screenField.getKeyname()}.getTableColumnModel().setDataCellRenderer(i, booleanRenderer);
+                }
+#end
+#end
+            }
+#end##end if $hasRenderer
+#set($row = ${row} + 1)
+#end## End macro qxtableForReferenceScreen
+###############################
+####### jump
+##            var createImg = "/${screen.getKeyname()}/icons/24x24/plain/element_new.png";
+##            var deleteImg = "/${screen.getKeyname()}/icons/24x24/plain/element_delete.png";
+##            var searchImg = "/${screen.getKeyname()}/icons/24x24/plain/element_find.png";
+##            var updateImg = "/${screen.getKeyname()}/icons/24x24/plain/element_into.png";
+##
+## WARNING this can be called with Screen or businessObjectAttribute instances !
+##
+###############################
+#macro(jump $screenField $row=1 $col=1)
+#set($jumpError = 0)
+            // The ScreenField variable was a ${screenField.getClass().getName()} has jumps = ${screenField.hasJumps()}    
+#if(${screenField.hasJumps()})
+#if(${screenField.hasMaxiJumps()})
+            var ${screenField.getKeyname()}Toolbar = new qx.ui.toolbar.ToolBar();
+            ${screenField.getKeyname()}Toolbar.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}Toolbar";
+#end
+            var ${screenField.getKeyname()}MiniBar = new qx.ui.toolbar.ToolBar();
+            ${screenField.getKeyname()}MiniBar.setAppearance("widget");
+            ${screenField.getKeyname()}MiniBar.seleniumId = "${screenField.getBusinessObjectName()}.${screenField.getKeyname()}MiniBar";
+            
+#if(${screenField.hasDefaultDeletor()})
+            // Delete jump to handle negative-ids (newly created) data
+            this.${screenField.getKeyname()}DefaultDeleteButton = new qx.ui.toolbar.Button(null, dolab.fwk.ui.IconManager.getIcon("targapp delete", "jump"));
+            this.${screenField.getKeyname()}DefaultDeleteButton.seleniumId = "${screenField.getKeyname()}DefaultDeleteButton";
+            var ${screenField.getKeyname()}DefaultDeleteTooltip = new qx.ui.tooltip.ToolTip("Delete newly created item", dolab.fwk.ui.IconManager.getIcon("targapp delete", "icon"));
+            this.${screenField.getKeyname()}DefaultDeleteButton.setToolTip(${screenField.getKeyname()}DefaultDeleteTooltip);
+            this.${screenField.getKeyname()}DefaultDeleteButton.setVisibility("excluded");
+            this.${screenField.getKeyname()}DefaultDeleteButton.addListener("click", function() {
+                var dialog = new dolab.fwk.ui.Dialog();
+                var id = this._N_${screenField.getKeyname()}.getSelectedId();
+                var yesCallback = 
+                    function() {
+                        var mem =#if(${screenField.hasSmallSelector()}) this._N_${screenField.getKeyname()}.getModel()#else this._N_${screenField.getKeyname()}Data#end;
+#if(${screenField.isCollection()})
+                        for (var i = mem.length - 1; i >= 0; i--) {
+                            if (mem[i].id == id) {
+                                mem = mem[i];
+#if(!${screenField.hasSmallSelector()})
+                                this._N_${screenField.getKeyname()}Data.splice(i, 1);
+#else
+                                this._N_${screenField.getKeyname()}.removeFromModel(mem.id);
+#end
+                                break;
+                            }
+                        };
+#else
+                        this._N_${screenField.getKeyname()}.removeFromModel(this._N_${screenField.getKeyname()}.getSelectedId());
+                        this._N_${screenField.getKeyname()}Data = null;
+#end
+#if(${screenField.getReferencedScreen().hasFileFields()})
+                        var fileIds = [
+#set($first=true)
+#foreach($subField in ${screenField.getReferencedScreen().getFields()})
+#if(${subField.isFile()})
+                            #if(!$first),#else#set($first=false)#end mem.${subField.getDataKeyname()}
+#end
+#end
+                            ];
+                            var request = { svc : "dolab.fwk.files.persistence.ApplicationFileIndexController", m : "removeAll", p : [fileIds] };
+                            this.send("Deleting associated files", request, function () {});
+#end
+#if(!${screenField.hasSmallSelector()})
+                        var row = this._N_${screenField.getKeyname()}.getFocusedRow();
+                        this._N_${screenField.getKeyname()}TableModel.removeRows(row, 1);
+#end
+                    };
+
+                var noCallback = 
+                    function() {};
+
+                dialog.open(this, "Delete confirmation", ["Please confirm the deletion of ${screenField.getDataTargetBusinessObject()} " + id ], null, [
+                    {
+                        lbl : "Yes, delete",
+                        cde : yesCallback,
+                        ctx : this,
+                        keyLstnr : dialog,
+                        key : "Enter",
+                        seleniumId : "yesButton",
+                        ico : "yesdelete"
+                    },
+                    {
+                        lbl : "No",
+                        cde : noCallback,
+                        ctx : this,
+                        keyLstnr : dialog,
+                        key : "Escape",
+                        seleniumId : "noButton",
+                        ico : "no"
+                    }
+                ]);
+            }, this);
+
+            ${screenField.getKeyname()}MiniBar.add(this.${screenField.getKeyname()}DefaultDeleteButton);
+            this.${screenField.getKeyname()}DefaultDeleteButton.setAlignY("bottom");
+#end
+#foreach ($jump in ${screenField.getJumps()})
+#if(!${jump.isSmallSelector()})
+#if(${jump.hasTargetScenario()})
+            //
+            // Jump to ${jump.getTargetScenario().getKeyname()} (jump ${jump.toString()})
+            //
+            var ${jump.getTargetScenario().getKeyname()}Icon = dolab.fwk.ui.IconManager.getIcon(#if(${jump.isCreate()})"targapp create"#elseif(${jump.isDelete()})"targapp delete"#elseif(${jump.isUpdate()})"targapp update"#elseif(${jump.isStrictlyRead()})"targapp read"#elseif(${jump.isSearch()})"targapp search"#end, "jump");
+#if(${jump.isMiniJump()}) 
+            var ${jump.getTargetScenario().getKeyname()}Button = new qx.ui.toolbar.Button(null, ${jump.getTargetScenario().getKeyname()}Icon);
+            var ${jump.getTargetScenario().getKeyname()}ButtonTooltip = new qx.ui.tooltip.ToolTip("${jump.getName()}#if(${compiler.isDebug()})(jump ${jump.toString()})#end", ${jump.getTargetScenario().getKeyname()}Icon);
+#else
+            var ${jump.getTargetScenario().getKeyname()}Button = new qx.ui.toolbar.Button("${jump.getName()}", ${jump.getTargetScenario().getKeyname()}Icon);
+            var ${jump.getTargetScenario().getKeyname()}ButtonTooltip = new qx.ui.tooltip.ToolTip("${jump.getTitle()}#if(${compiler.isDebug()})(jump ${jump.toString()})#end", ${jump.getTargetScenario().getKeyname()}Icon);
+#end
+            ${jump.getTargetScenario().getKeyname()}Button.seleniumId = "${screenField.getBusinessObjectName()}.${jump.getTargetScenario().getKeyname()}Button";
+#if(${jump.hasRichTitle()})
+            ${jump.getTargetScenario().getKeyname()}ButtonTooltip.setRich(true);
+#end
+            ${jump.getTargetScenario().getKeyname()}Button.setToolTip(${jump.getTargetScenario().getKeyname()}ButtonTooltip);
+#if(${jump.getTargetScreen().hasRoles()})
+#if(${jump.getTargetScreen().isRolesAllowed()})
+            if (dolab.fwk.auth.AuthManager.getInstance().hasRoles([#foreach($role in ${jump.getTargetScreen().getRoles()})"${role}"#if($foreach.hasNext), #end#end])) {
+#else
+            if (!dolab.fwk.auth.AuthManager.getInstance().hasRoles([#foreach($role in ${jump.getTargetScreen().getRoles()})"${role}"#if($foreach.hasNext), #end#end])) {
+#end
+#end
+#if(${jump.isMiniJump()})
+            ${screenField.getKeyname()}MiniBar.add(${jump.getTargetScenario().getKeyname()}Button);
+            ${jump.getTargetScenario().getKeyname()}Button.setAlignY("middle");
+#else
+                ${screenField.getKeyname()}Toolbar.add(${jump.getTargetScenario().getKeyname()}Button);
+#end
+#if(${jump.getTargetScreen().hasRoles()})
+            }
+#end
+            ${jump.getTargetScenario().getKeyname()}Button.addListener("execute",
+                function(e) {
+                    try {
+#if (!${jump.getTargetScenario().getCrud().isDelete()})
+                        this.debug("Instanciating ${jump.getScreen().getQxClassName()} screen ...");
+                        var ${jump.getTargetScenario().getKeyname()}Screen = new ${jump.getScreen().getQxClassName()}((this.context != null ? this.context : "${screen.getKeyname()}"));
+                        this.debug("Instanciating ${jump.getScreen().getQxClassName()} screen. Done.");
+#end
+                        var displayedFields = [
+#set($first = true)
+#if(${screenField.isScreenReference()})
+#foreach($referencedField in ${screenField.getReferencedScreen().getFields()})
+                            #if(!$first),#else#set($first = false)#end"${referencedField.getDataKeyname()}"
+#end
+#else
+                            // info : Field ${screenField.getKeyname()} is not screen reference but has a jump to ${jump.getTargetScenario().getKeyname()}.
+#end
+                        ];
+
+                        var that = this;
+#if(${jump.isFusionJump()})
+#if(${jump.isStrictlyRead()})
+                        var id = this._N_${screenField.getKeyname()}.getSelectedId();
+#end
+                        this.send("Requesting fusion...", {svc:"${application.getPackageName()}.${screen.getBusinessObjectNameFirstCapitalized()}Controller",
+                                    m:"${jump.getScreen().getPrepareCall().getServerMethodName()}", p:[#if(${jump.isStrictlyRead()})id#else null #end]},
+                                    function(result) {
+                                        window.open("files/fusion/" + result.fileName + "?key=" + result.key, "_blank");
+                                    });
+#elseif(${jump.getTargetScenario().getCrud().isUpdate()} || ${jump.getTargetScenario().getCrud().isStrictlyRead()})
+## Pass along the id of the object we want to modify
+						var ${jump.getTargetScenario().getKeyname()}id = this._N_${screenField.getKeyname()}.getSelectedId();
+						var notYetPersisted = (${jump.getTargetScenario().getKeyname()}id < 0);
+
+                        ${jump.getTargetScenario().getKeyname()}Screen.initRequest.p = [];
+                        ${jump.getTargetScenario().getKeyname()}Screen.initRequest.p[0] = ${jump.getTargetScenario().getKeyname()}id;
+                        ${jump.getTargetScenario().getKeyname()}Screen.id = ${jump.getTargetScenario().getKeyname()}id;
+#if(${jump.getTargetScenario().getCrud().isUpdate()})
+## Set a callback to the update method in order to set the new data in the current screen.
+                        ${jump.getTargetScenario().getKeyname()}Screen.updateCallback = 
+                            function(data) {
+                                if (data != null) {
+#if(!${screenField.hasSmallSelector()})
+                                    var tblData = [data.id];
+#foreach($refField in ${screenField.getReferencedScreen().getFields()})
+#if(!${refField.isBuiltIn()})
+                                    tblData.push("{object}");
+#else
+#if(${refField.isFile()})
+                                    if (data.${refField.getDataKeyname()} != null) {
+#if(${refField.isImage()})
+                                    
+                                        var ${refField.getKeyname()}fileData = data.${refField.getDataKeyname()}FileIndex;
+                                        if (${refField.getKeyname()}fileData != null) {
+                                            var ${refField.getKeyname()}dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(${refField.getKeyname()}fileData.width, ${refField.getKeyname()}fileData.height, ${generator.getMaxImageSizeTabular()});
+                                        } else {
+                                            var ${refField.getKeyname()}dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(null, null, ${generator.getMaxImageSizeTabular()});
+                                        }
+                                        tblData.push('<img src="files/uploads/x?key=' + data.${refField.getDataKeyname()} + '" width="' + ${refField.getKeyname()}dimensions.width + '" height="' + ${refField.getKeyname()}dimensions.height + '"/>');
+#else
+                                        tblData.push(dolab.fwk.ui.IconManager.getIcon("download", "minitool"));
+#end##is image
+                                    } else {
+                                        tblData.push(null);
+                                    }
+#else
+                                    if (data.${refField.getDataKeyname()} !== null) {
+                                        tblData.push(data.${refField.getDataKeyname()});
+                                    } else {
+                                        tblData.push("");
+                                    }
+#end##is file
+#end##is builtin
+#end
+#if(${screenField.isCollection()})
+                                    var startIndex = 0;
+                                    for (var i = that._N_${screenField.getKeyname()}TableModel.getRowCount() - 1; i >= 0; i--) {
+                                        if (that._N_${screenField.getKeyname()}TableModel.getValue(0, i) == data.id) {
+                                            startIndex = i;
+                                            break;
+                                        }
+                                    }
+                                    that._N_${screenField.getKeyname()}TableModel.setRows([tblData], startIndex);
+#else
+                                    that._N_${screenField.getKeyname()}TableModel.setRows([tblData]);
+#end
+#else
+                                    that._N_${screenField.getKeyname()}.updateModel(data);
+#end##if !hasSmallSelector
+#if(${screenField.isCollection()})
+                                    for (var i = that._N_${screenField.getKeyname()}Data.length - 1; i >= 0; i--) {
+                                        if (that._N_${screenField.getKeyname()}Data[i].id == data.id) {
+                                            that._N_${screenField.getKeyname()}Data[i] = data;
+                                            break;
+                                        }
+                                    }
+#else
+                                    that._N_${screenField.getKeyname()}Data = data;
+#end
+                                }   
+                            };
+#end## end if is update
+#elseif(${jump.getTargetScenario().getCrud().isCreate()})
+## Here, the newly created item should not be added directly : instead, it will be added when validating the operation
+## in the root screen : thus, we have to override the standard okAction.
+                        ${jump.getTargetScenario().getKeyname()}Screen.okAction = 
+                            function() {
+#beforeOkAction(${jump.getTargetScenario().getAssociatedScreen()})
+                                var cascadeData = this.cascadeOkAction();
+                                var minId = that._N_${screenField.getKeyname()}.getMinId();
+                                var tblData = [minId];
+                                if (cascadeData != null) {
+#foreach($refField in ${screenField.getReferencedScreen().getFields()})
+#if(!${refField.isBuiltIn()})
+                                    tblData.push("{object}");
+#else
+#if(${refField.isFile()})
+                                    if (data.${refField.getDataKeyname()} != null) {
+#if(${refField.isImage()})
+                                        tblData.push('<img src="files/uploads/x?key=' + cascadeData.${refField.getDataKeyname()} + '" width="${generator.getMaxImageSizeTabular()}"/>');
+#else
+                                        tblData.push(dolab.fwk.ui.IconManager.getIcon("download", "minitool"));
+#end##is image
+                                    } else {
+                                        tblData.push(null);
+                                    }
+#else
+                                    if (cascadeData.${refField.getDataKeyname()} !== null) {
+                                        tblData.push(cascadeData.${refField.getDataKeyname()});
+                                    } else {
+                                        tblData.push("");
+                                    }
+#end##is file
+#end##is builtin
+#end
+                                    cascadeData.id = minId;
+#if(${screenField.isCollection()})
+                                    that._N_${screenField.getKeyname()}Data.push(cascadeData);
+#if(${screenField.hasSmallSelector()})
+                                    that._N_${screenField.getKeyname()}.addToModel(cascadeData);
+#else
+                                    that._N_${screenField.getKeyname()}TableModel.addRows([tblData]);
+#end##small selector
+#else
+                                    that._N_${screenField.getKeyname()}Data = cascadeData;
+#if(${screenField.hasSmallSelector()})
+                                    that._N_${screenField.getKeyname()}.addToModel(cascadeData);
+#else
+                                    that._N_${screenField.getKeyname()}TableModel.setRows([tblData]);
+#end##small selector
+#end
+                                    this.closeForEver();
+                                }
+#afterOkAction(${jump.getTargetScenario().getAssociatedScreen()})
+                            };
+#elseif (${jump.isSearch()} && ${screenField.getScreen().canHasSelectableSteps()})
+## Generating specific stuff for a selector!
+                        ${jump.getTargetScenario().getKeyname()}Screen.isSelector = true;
+                        ${jump.getTargetScenario().getKeyname()}Screen.isMandatory = ${screenField.isMandatory()};
+                        ${jump.getTargetScenario().getKeyname()}Screen.isCollection = ${screenField.isCollection()};
+                        ${jump.getTargetScenario().getKeyname()}Screen.selectedIds = this._N_${screenField.getKeyname()}.getSelectedIds();
+
+#if (${screenField.isMandatory()})
+                        ${jump.getTargetScenario().getKeyname()}Screen.hasSelection = 
+                            function() {
+                                var selected = false;
+                                var tableData = this._N_${jump.getTargetBusinessObjectName()}.getTableModel().getData();
+                                var lastIndex = this._N_${jump.getTargetBusinessObjectName()}.getTableModel().getColumnCount() - 1;
+                                for (var i = tableData.length - 1; i >= 0; i--) {
+                                    if (tableData[i][lastIndex]) {
+                                        selected = true;
+                                        break;
+                                    }
+                                }
+                            
+                                return selected;
+                            };
+
+                        ${jump.getTargetScenario().getKeyname()}Screen.checkMandatory =
+                            function() {
+                                var selected = this.hasSelection();
+                                if (!selected) {
+                                    this.buttonPane.buttons["okButton"].setVisibility("hidden");
+                                } else {
+                                    this.buttonPane.buttons["okButton"].setVisibility("visible");
+
+                                }
+                            };
+#end
+
+                        ${jump.getTargetScenario().getKeyname()}Screen.okAction = 
+                            function() {
+                                var _N_${screenField.getKeyname()}DataTmp = [];
+                                var _N_${screenField.getKeyname()}TableData = this._N_${jump.getTargetBusinessObjectName()}TableModel.getData();
+                                var passedData = this.getDataForSelection();
+
+                                for (var i = 0, tableDataLength = _N_${screenField.getKeyname()}TableData.length; i < tableDataLength; i++) {
+                                    if (_N_${screenField.getKeyname()}TableData[i][_N_${screenField.getKeyname()}TableData[i].length - 1]) {
+                                        var ${screenField.getKeyname()}Id = _N_${screenField.getKeyname()}TableData[i][0];
+                                        for (var j = 0; j < this.data.length; j++) {
+                                            if (passedData[j].id == ${screenField.getKeyname()}Id) {
+                                                _N_${screenField.getKeyname()}DataTmp.push(passedData[j]);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+#if(!${screenField.hasSmallSelector()})
+
+                                var tblData = [];
+                                for (var j = 0; j < _N_${screenField.getKeyname()}DataTmp.length; j++) {
+                                    var rowData = _N_${screenField.getKeyname()}DataTmp[j];
+                                    if (rowData != null) {
+                                        tblData[j] = [rowData.id];
+#foreach($refField in ${screenField.getReferencedScreen().getFields()})
+#if(!${refField.isBuiltIn()})
+                                        tblData[j].push("{object}");
+#else
+#if(${refField.isFile()})
+                                        if (rowData.${refField.getDataKeyname()} != null) {
+#if(${refField.isImage()})
+                                            var ${refField.getKeyname()}fileData = rowData.${refField.getDataKeyname()}FileIndex;
+                                            if (${refField.getKeyname()}fileData != null) {
+                                                var ${refField.getKeyname()}dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(${refField.getKeyname()}fileData.width, ${refField.getKeyname()}fileData.height, ${generator.getMaxImageSizeTabular()});
+                                            } else {
+                                                var ${refField.getKeyname()}dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(null, null, ${generator.getMaxImageSizeTabular()});
+                                            }
+                                            tblData[j].push('<img src="files/uploads/x?key=' + rowData.${refField.getDataKeyname()} + '" width="' + ${refField.getKeyname()}dimensions.width + '" height="' + ${refField.getKeyname()}dimensions.height + '"/>');
+#else
+                                            tblData[j].push(dolab.fwk.ui.IconManager.getIcon("download", "minitool"));
+#end##is image
+                                        } else {
+                                            tblData[j].push(null);
+                                        }
+#else
+                                        if (rowData.${refField.getDataKeyname()} !== null) {
+                                            tblData[j].push(rowData.${refField.getDataKeyname()});
+                                        } else {
+                                            tblData[j].push("");
+                                        }
+#end##is file
+#end##is builtin
+#end
+                                    }
+                                }
+#end##end !hasSmallSelector
+
+#if(${screenField.isCollection()})
+                                // Recover negative ids (virtual ids of objects that are not yet persisted)
+                                // and keep them in the table and in the data...
+                                var currentData = that._N_${screenField.getKeyname()}.getModel();
+                                for (var j = 0; j < currentData.length; j++) {
+                                    var rowData = currentData[j];
+                                    if (rowData != null) {
+                                        var id =#if(${screenField.hasSmallSelector()}) rowData.id#else that._N_${screenField.getKeyname()}TableModel.getValue(0, j)#end;
+                                        if (id < 0) {
+#if(!${screenField.hasSmallSelector()})
+                                            tblData.push(rowData);
+#end
+                                            for (var k = 0; k < that._N_${screenField.getKeyname()}Data.length; k++) {
+                                                if (that._N_${screenField.getKeyname()}Data[k].id == id) {
+                                                    _N_${screenField.getKeyname()}DataTmp.push(that._N_${screenField.getKeyname()}Data[k]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+#end
+#if(${screenField.isCollection()})
+                                that._N_${screenField.getKeyname()}Data = _N_${screenField.getKeyname()}DataTmp;
+#else
+                                if(_N_${screenField.getKeyname()}DataTmp != null && _N_${screenField.getKeyname()}DataTmp.length > 0) {
+                                    that._N_${screenField.getKeyname()}Data = _N_${screenField.getKeyname()}DataTmp[0];
+                                } else {
+                                    that._N_${screenField.getKeyname()}Data = null;
+                                }
+#end
+#if(!${screenField.hasSmallSelector()})
+                                that._N_${screenField.getKeyname()}TableModel.setData(tblData);
+#else
+                                that._N_${screenField.getKeyname()}.setSelected(_N_${screenField.getKeyname()}DataTmp);
+#end
+#if(${screenField.isMandatory()})
+                                if (that._N_${screenField.getKeyname()}Data) {
+                                    this.closeForEver();
+                                }
+#else
+                                this.closeForEver();
+#end
+                            }; // end of okAction
+#end ## End of specific stuff for selector...
+
+#if(${jump.getTargetScenario().getCrud().isDelete()})
+## Send confirmation dialog. Discriminate on notYetPersisted to know if a server call must be done.
+                        var dialog = new dolab.fwk.ui.Dialog();
+                        var id = this._N_${screenField.getKeyname()}.getSelectedId();
+                        if (id !== null) {
+                            var yesCallback = 
+                                function() {
+                                    var removeFromClient = 
+                                        function(data) {
+#if(!${screenField.hasSmallSelector()})
+                                            var row = this._N_${screenField.getKeyname()}.getFocusedRow();
+                                            this._N_${screenField.getKeyname()}TableModel.removeRows(row, 1);
+#else
+                                            this._N_${screenField.getKeyname()}.removeFromModel(id);
+#end
+#if(${screenField.isCollection()})
+                                            for (var i = this._N_${screenField.getKeyname()}Data.length - 1; i >= 0; i--) {
+                                                if (this._N_${screenField.getKeyname()}Data[i].id == id) {
+                                                    this._N_${screenField.getKeyname()}Data.splice(i, 1);
+                                                    break;
+                                                }
+                                            }
+#else
+                                            this._N_${screenField.getKeyname()}Data = null;
+#end
+                                        };
+                                    if (id > 0) {
+                                        this.send("Deleting ${screenField.getDataTargetBusinessObject()} id = " + id + " ...", 
+                                            {svc:"${application.getPackageName()}.${screenField.getDataTargetBusinessObject()}Controller",
+                                            m:"${jump.getScreen().getExecuteCall().getServerMethodName()}", p:[id]}, removeFromClient);
+                                    } else {
+                                        removeFromClient.call(this);
+                                    }
+                                };
+
+                            var noCallback = function() {
+                            };
+
+                            dialog.open(this, "Delete confirmation", ["Please confirm the deletion of ${screenField.getDataTargetBusinessObject()} " + id ], null, [
+                                {
+                                    lbl : "Yes, delete",
+                                    cde : yesCallback,
+                                    ctx : this,
+                                    keyLstnr : dialog,
+                                    key : "Enter",
+                                    seleniumId : "yesButton",
+                                    ico : "yesdelete"
+                                },
+                                {
+                                    lbl : "No",
+                                    cde : noCallback,
+                                    ctx : this,
+                                    keyLstnr : dialog,
+                                    key : "Escape",
+                                    seleniumId : "noButton",
+                                    ico : "no"
+                                }
+                            ]);
+                        }
+#elseif(${jump.getTargetScenario().getCrud().isUpdate()} || ${jump.getTargetScenario().getCrud().isStrictlyRead()})
+                        if (${jump.getTargetScenario().getKeyname()}id != null) {
+                            if (!notYetPersisted) {
+                                ${application.getKeyname()}.${application.getKeynameFirstCapitalized()}.getInstance().overrideWin(this, ${jump.getTargetScenario().getKeyname()}Screen#if(${jump.hasName()}), {}, "${jump.getName()}"#end);
+                            } else {
+                                ${jump.getTargetScenario().getKeyname()}Screen.setInitRequest(null);
+#if(${screenField.isCollection()})
+                                var data = null;
+                                for (var i = this._N_${screenField.getKeyname()}Data.length - 1; i >= 0; i--) {
+                                    if (this._N_${screenField.getKeyname()}Data[i].id == ${jump.getTargetScenario().getKeyname()}id) {
+                                        data = this._N_${screenField.getKeyname()}Data[i];
+                                    }
+                                }
+                                ${jump.getTargetScenario().getKeyname()}Screen.fillFields(data);
+#else
+                                ${jump.getTargetScenario().getKeyname()}Screen.fillFields(this._N_${screenField.getKeyname()}Data);
+#end
+                                ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().overrideWin(this, ${jump.getTargetScenario().getKeyname()}Screen#if(${jump.hasName()}), null, "${jump.getName()}"#end);
+                            }
+                        } else {
+                            this.info("No selection!");
+                        }
+#else
+                        ${application.getPackageName()}.${application.getKeynameFirstCapitalized()}.getInstance().overrideWin(this, ${jump.getTargetScenario().getKeyname()}Screen#if(${jump.hasName()}), null, "${jump.getName()}"#end);
+#end
+                    } catch (err) {
+                        this.error("Error in ${jump.getTargetScenario().getKeyname()}Button during a jump to scenario ['${jump.getTargetScenario().getKeyname()}'] :");
+                        this.error(err);
+                    }
+                }, this);
+
+#else
+#set($jumpError = ${jumpError} + 1)
+            // ERROR : there is a jump error here. The following jump had not been compiled OK :
+            // ${jump.toString()}
+            //
+            this.debug("Jump error on screenfield ${screenField.getKeyname()} : jump ${jump.toString()}");
+            var _N_${screenField.getKeyname()}JumpError${jumpError} = new qx.ui.basic.Atom("Jump error", dolab.fwk.ui.IconManager.getIcon("field err", "icon"));
+            var _N_${screenField.getKeyname()}JumpError${jumpError}Tooltip = new qx.ui.tooltip.ToolTip("jump ${jump.toString()}", dolab.fwk.ui.IconManager.getIcon("field err", "icon"));
+            _N_${screenField.getKeyname()}JumpError${jumpError}.setToolTip(_N_${screenField.getKeyname()}JumpError${jumpError}Tooltip);
+            ${screenField.getKeyname()}Toolbar.add(_N_${screenField.getKeyname()}JumpError${jumpError});
+
+#end
+#end##End !small selector
+#end## End foreach jumps
+
+#end##End if(${screenField.hasJumps()})
+#if(${screenField.isScreenReference()})
+#if(!${screenField.hasSmallSelector()})
+            var compositeTable = new dolab.fwk.ui.table.CompositeTable(this._N_${screenField.getKeyname()},#if(${screenField.hasMaxiJumps()}) ${screenField.getKeyname()}Toolbar#else null#end,#if(${screenField.hasJumps()}) ${screenField.getKeyname()}MiniBar#else null#end, "${screenField.getScreen().getKeyname()}.${screenField.getName()}", this, false);
+#end
+#if(${screenField.hasJumps()})
+            ${screenField.getKeyname()}MiniBar.setAlignX("right");
+            ${screenField.getKeyname()}MiniBar.setAllowGrowX(false);
+            ${screenField.getKeyname()}MiniBar.setAllowGrowY(false);
+#if(${screenField.hasSmallSelector()})
+            this.pane.add(${screenField.getKeyname()}MiniBar, {row : $row, column : 4});
+#end
+#if(${screenField.hasMaxiJumps()})
+            ${screenField.getKeyname()}Toolbar.setAppearance("widget");
+            ${screenField.getKeyname()}Toolbar.setAllowGrowX(false);
+            ${screenField.getKeyname()}Toolbar.setAllowGrowY(false);
+#if(${screenField.hasSmallSelector()})
+            this.pane.add(${screenField.getKeyname()}Toolbar, {row : $row, column : 3});
+            ${screenField.getKeyname()}MiniBar.setAlignY("top");
+            ${screenField.getKeyname()}Toolbar.setAlignY("top");
+#else
+            ${screenField.getKeyname()}MiniBar.setAlignY("bottom");
+#end
+#end
+#end
+#if(!${screenField.hasSmallSelector()})
+            this.addCompositeTable(this._N_${screenField.getKeyname()}Group, '${screenField.getKeyname()}', 'w', compositeTable, {edge : "center"});
+#end
+#elseif(!${screenField.hasSmallSelector()}) ##screenfield is screenref
+#if(${screenField.hasJumps()})
+            this.pane.add(${screenField.getKeyname()}Toolbar, {row: ${row}, column: ${col}});
+#end
+#end ##screenfield is screenref
+#end##End macro jump
+#################################################
+##### Macro for removing negative ids recursively
+#################################################
+#macro(generateRemoveNegativeIds $screen)
+        removeNegativeIds : function() {
+            var that = this;
+            var removeNegativeIdsRec = 
+                function(data) {
+                    for (var key in data) {
+                        if (key == "id" && data[key] < 0) {
+                            that.debug("Found negative id:" + data[key] + ". Replacing with null...");
+                            data[key] = null;
+                        }
+                        if ((typeof(data[key]) == "object") && (data[key] != null)) {
+                            if (!data[key].length) {
+                                removeNegativeIdsRec(data[key]);
+                            } else {
+                                for (var i = data[key].length - 1; i >= 0; i--) {
+                                    removeNegativeIdsRec(data[key][i]);
+                                }
+                            }
+                        }
+                    }
+                };
+#foreach($screenField in ${screen.getFields()})
+#if(!${screenField.isBuiltIn()})
+#if(!${screenField.isCollection()})
+            removeNegativeIdsRec(this._N_${screenField.getKeyname()}Data);
+#else
+            for (var i = 0; i < this._N_${screenField.getKeyname()}Data.length; i++) {
+                removeNegativeIdsRec(this._N_${screenField.getKeyname()}Data[i]);
+            }
+#end
+#end
+#end
+        },
+#end
+#################################################
+## Macro to handle dataset screenfield generation
+#################################################
+#macro(generateDatasetField $screenField)
+#if(${screenField.getDataset().isXSmall()})
+#if(${screenField.isMandatory()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.RadioButtons('label', 'value')")
+#else
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.CheckBoxes('label', 'value')")
+            this._N_${screenField.getKeyname()}.setMultiple(${screenField.isCollection()});
+#end
+#elseif(${screenField.getDataset().isSmall()})
+#if(${screenField.isCollection()})
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.DoubleList('label', 'value')")
+#else
+#qxsimplefield(${screenField} "dolab.fwk.ui.selections.SelectBox('label', 'value')")
+#end
+#end
+            this._N_${screenField.getKeyname()}.setModel(${screenField.getDataset().getClassName()}.getModel());
+#end

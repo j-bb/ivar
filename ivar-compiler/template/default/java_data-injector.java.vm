@@ -1,0 +1,248 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+##.
+###############################
+####### Begin #################
+###############################
+#parse("common/java_general_copyright.vm")
+package ${this.getPackageName()}.dataconfig;
+
+import dolab.fwk.AbstractObject;
+import dolab.fwk.rpc.ControllerContext;
+import dolab.fwk.util.CollectionFactory;
+import dolab.fwk.util.StringHelper;
+
+import javax.persistence.Query;
+import java.util.List;
+
+import ${this.getPackageName()}.AppUser;
+import ${this.getPackageName()}.AppRole;
+
+public final class DataInjector extends AbstractObject {
+    private static final String SUPER_ADMIN = "SUPER-ADMIN" ;
+
+    public DataInjector() {
+        injectData();
+    }
+
+    private final void injectData() {
+        beginBlock("Creating a new ControllerContext ...");
+        final ControllerContext cc = new ControllerContext();
+        endBlock("Creating a new ControllerContext : done.");
+        beginBlock("Testing database connection ...");
+        getUser(cc, "Steve");
+        endBlock("Testing database connection. Done.");
+
+        injectDefaultData();
+
+        injectRoles(new String[]{#set ($first = "true")#set ($empty = "true")#foreach ($role in ${this.getRoles()})#if ($first == "true")#set($first = "false")#set($empty = "false")#else ,#end"${role}"#end});
+
+    }
+
+    private final AppUser getUser(final ControllerContext cc, final String login) {
+        AppUser result = null;
+        beginBlock("Querying the database for user " + login + " ...");
+        final String ql = "SELECT appUser FROM AppUser appUser where appUser.login = :login" ;
+        final Query query = cc.createQuery(ql);
+        query.setParameter("login", login);
+        final List requestResult = query.getResultList();
+        final List<AppUser> appUsers = (List<AppUser>) requestResult;
+        if (appUsers != null && appUsers.size() == 1) {
+            result = appUsers.get(0);
+        }
+        endBlock("Querying the database for user " + login + ". Done.");
+        return result;
+    }
+
+    private final List<AppUser> getUsers(final ControllerContext cc) {
+        beginBlock("Querying the database for all users ...");
+        final String ql = "SELECT appUser FROM AppUser appUser" ;
+        final Query query = cc.createQuery(ql);
+
+        final List requestResult = query.getResultList();
+        final List<AppUser> appUsers = (List<AppUser>) requestResult;
+
+        endBlock("Querying the database for all users. Done.");
+        return appUsers;
+    }
+
+    private final long getUsersCount(final ControllerContext cc) {
+        beginBlock("Querying the database for counting all users ...");
+        final String ql = "SELECT count(appUser.login) FROM AppUser appUser" ;
+        final Query query = cc.createQuery(ql);
+
+        final Number count = (Number) query.getSingleResult();
+        endBlock("Querying the database for counting all users. Done : " + count);
+        return count.longValue();
+    }
+
+    private final AppRole getAppRole(final ControllerContext cc, final String roleName) {
+        AppRole result = null;
+        beginBlock("Querying the database for role " + roleName + " ...");
+        final String ql = "SELECT appRole FROM AppRole appRole where appRole.name = :roleName" ;
+        final Query query = cc.createQuery(ql);
+        query.setParameter("roleName", roleName);
+        final List requestResult = query.getResultList();
+        final List<AppRole> appRoles = (List<AppRole>) requestResult;
+        if (appRoles != null && appRoles.size() == 1) {
+            result = appRoles.get(0);
+        }
+        endBlock("Querying the database for role " + roleName + ". Done.");
+        return result;
+    }
+
+    private final List<AppRole> getAppRole(final ControllerContext cc) {
+        beginBlock("Querying the database for all roles ...");
+        final String ql = "SELECT appRole FROM AppRole appRole" ;
+        final Query query = cc.createQuery(ql);
+        final List requestResult = query.getResultList();
+        final List<AppRole> appRoles = (List<AppRole>) requestResult;
+        endBlock("Querying the database for all roles. Done.");
+        return appRoles;
+    }
+
+
+    private final void injectRoles(final String[] futureRoles) {
+        beginBlock("Merging roles ...");
+
+        beginBlock("Creating a new ControllerContext ...");
+        ControllerContext cc = new ControllerContext();
+        endBlock("Creating a new ControllerContext : done.");
+
+        // Step 1 : remove roles that are no more needed. Update the user that had it.
+        cc.beginTransaction();
+        final List<AppUser> users = getUsers(cc);
+        final List<AppRole> rolesToReallyRemove = CollectionFactory.newList();
+        final List<AppRole> rolesToKeep = CollectionFactory.newList();
+        final List<AppRole> rolesToRemove = CollectionFactory.newList();
+        for (final AppUser user : users) {
+            if ("steve".equals(user.getLogin())) {
+                break;
+            }
+            rolesToKeep.clear();
+            rolesToRemove.clear();
+
+            for (final AppRole role : user.getAppRole()) {
+                if (SUPER_ADMIN.equals(role.getName())) {
+                    break;
+                }
+                boolean found = false;
+
+                for (final String futureRole : futureRoles) {
+                    if (futureRole.equals(role.getName())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    rolesToKeep.add(role);
+                } else {
+                    rolesToRemove.add(role);
+                }
+            }
+            if (rolesToRemove.size() > 0) {
+                info("Found a user to update ( " + user.getLogin() + " ) : his roles had changed, the following roles will be removed :");
+                for (final AppRole role : rolesToRemove) {
+                    info("  * " + role.getName());
+                    if (!rolesToReallyRemove.contains(role)) {
+                        rolesToReallyRemove.add(role);
+                    }
+                }
+                user.setAppRole(rolesToKeep);
+                cc.persist(user);
+            }
+        }
+        rolesToKeep.clear();
+        rolesToRemove.clear();
+        for (final AppRole role : rolesToReallyRemove) {
+            info("Deleting role from DB : " + role.getName());
+            cc.remove(role);
+        }
+        rolesToReallyRemove.clear();
+        cc.commitTransaction();
+
+        beginBlock("Creating a new ControllerContext ...");
+        cc = new ControllerContext();
+        endBlock("Creating a new ControllerContext : done.");
+
+        // Step 2 : add the new roles
+        cc.beginTransaction();
+        final List<AppRole> roles = getAppRole(cc);
+        for (final String futureRole : futureRoles) {
+            boolean found = false;
+            for (final AppRole role : roles) {
+                if (futureRole.equals(role.getName())) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                info("New role found : " + futureRole);
+                final AppRole newRole = new AppRole();
+                newRole.setName(futureRole);
+                cc.persist(newRole);
+            }
+        }
+        cc.commitTransaction();
+        endBlock("Merging roles. Done.");
+
+    }
+
+    private final void injectDefaultData() {
+        beginBlock("Injecting default data ...");
+
+        beginBlock("Creating a new ControllerContext ...");
+        final ControllerContext cc = new ControllerContext();
+        endBlock("Creating a new ControllerContext : done.");
+
+        cc.beginTransaction();
+
+        AppRole superadmin = getAppRole(cc, SUPER_ADMIN);
+
+        if (superadmin == null) {
+            info("Role super-admin doesn't exist, creating it ...");
+            superadmin = new AppRole();
+            superadmin.setName(SUPER_ADMIN);
+            cc.persist(superadmin);
+            info("Role super-admin created.");
+        } else {
+            info("Role super-admin already exists, reusing existing role, of course.");
+        }
+
+        final long count = getUsersCount(cc);
+        if (count > 0) {
+            info("Houston ? There are " + count + " users already, so nothing to do, roger that Steve !");
+        } else {
+            info("No users at all, that database is like a desert on earth, adding Steve ...");
+            final AppUser steve = new AppUser();
+            steve.setLogin("Steve");
+            steve.setHashedPassword(StringHelper.SHA1("Austin"));
+            steve.addAppRole(superadmin);
+            cc.persist(steve);
+            info("OK Houston, Steve added, roger. Population count is 1. Happy birthday Steve.");
+        }
+        final AppUser steve = getUser(cc, "steve");
+        if (steve != null && (steve.getAppRole() == null || !steve.getAppRole().contains(superadmin))) {
+            info("Houston, one more thing, Steve is there but doesn't have superadmin role. Let'ses add the role.");
+            steve.addAppRole(superadmin);
+            cc.persist(steve);
+        }
+
+        cc.commitTransaction();
+        endBlock("Injecting default data. Done.");
+    }
+}
