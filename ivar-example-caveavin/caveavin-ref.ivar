@@ -1,0 +1,7 @@
+import a.b.c;
+
+
+##    This will be a great app
+
+Application d.e.f.caveavin "Cave à vin" fr-fr;
+Scenario g.h.i.ajouterbouteille "Ajouter une bouteille" CREATE Bouteille;

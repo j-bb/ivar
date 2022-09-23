@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License
+-->
+
+
+<project name="master">
+    <macrodef name="enhance" description="This will enhance annotated Java entity classes.">
+
+        <attribute name="class-dir" description="The class folder where to find .class fileto enhance"/>
+        <attribute name="jfwk-class-dir" description="The class folder for jfwk"/>
+        <attribute name="src-dir" description="The source folder where to find META-INF/persistence.xml"/>
+        <attribute name="persistence-unit" description="The persistence unit to use in the persistence.xml file"/>
+        <attribute name="jpa-lib-dir" description="Path to the content of the jpa lib folder"/>
+        <attribute name="openjpa-lib-dir" description="Path to the content of the openjpa lib folder"/>
+        <attribute name="commons-lib-dir" description="Path to the content of the commons lib folder"/>
+
+        <sequential>
+            <java classname="org.apache.openjpa.enhance.PCEnhancer" failonerror="true" fork="true">
+                <jvmarg value="-Dfile.encoding=UTF-8"/>
+                <classpath>
+                    <fileset dir="@{commons-lib-dir}">
+                        <include name="*.jar"/>
+                    </fileset>
+                    <fileset dir="@{jpa-lib-dir}">
+                        <include name="*.jar"/>
+                    </fileset>
+                    <fileset dir="@{openjpa-lib-dir}">
+                        <include name="*.jar"/>
+                    </fileset>
+
+                    <pathelement location="@{jfwk-class-dir}"/>
+                    <pathelement location="@{class-dir}"/>
+                    <pathelement path="@{src-dir}"/>
+                </classpath>
+                <arg value="-properties"/>
+                <arg value="META-INF/persistence.xml#@{persistence-unit}"/>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="install-schema"
+              description="This will install or upgrade the database schema from annotated and enhanced Java classes.">
+
+        <attribute name="class-dir" description="The class folder where to find .class fileto enhance"/>
+        <attribute name="persistence-unit" description="The persistence unit to use in the persistence.xml file"/>
+        <attribute name="lib-dir" description="Path to the content of the jpa/openjpa lib folder"/>
+        <attribute name="jdbc-lib-dir" description="Full path to folder that contains JDBC drivers jar"
+                   default="@{lib-dir}"/>
+
+        <sequential>
+            <java classname="org.apache.openjpa.jdbc.meta.MappingTool" failonerror="true" fork="true">
+                <jvmarg value="-Dfile.encoding=UTF-8"/>
+
+                <classpath>
+                    <fileset dir="@{lib-dir}">
+                        <include name="*.jar"/>
+                    </fileset>
+                    <fileset dir="@{jdbc-lib-dir}">
+                        <include name="*.jar"/>
+                    </fileset>
+                    <pathelement location="@{class-dir}"/>
+                </classpath>
+
+                <arg value="-properties"/>
+                <arg value="META-INF/persistence.xml#@{persistence-unit}"/>
+                <arg value="-action"/>
+                <arg value="buildSchema"/>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate-full-ddl-file"
+              description="This will install or upgrade the database schema from annotated and enhanced Java classes.">
+
+        <attribute name="class-dir"
+                   description="The class folder where to find .class file annotated and enhanced using OpenJPA"/>
+        <attribute name="persistence-xml-file" description="The full path to the persistence.xml file"/>
+        <attribute name="lib-dir"
+                   description="Folder where to find /openjpa and /jpa folders that contains all the .jar"/>
+        <attribute name="jdbc-lib-dir" description="Full path to folder that contains JDBC drivers jar"
+                   default="@{lib-dir}"/>
+
+        <attribute name="sqlFile"/>
+
+        <sequential>
+            <taskdef name="mappingtool" classname="org.apache.openjpa.jdbc.ant.MappingToolTask">
+                <classpath>
+                    <fileset dir="@{lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <pathelement location="@{class-dir}"/>
+                </classpath>
+            </taskdef>
+
+            <mappingtool schemaAction="build" sqlFile="@{sqlFile}">
+                <config propertiesFile="@{persistence-xml-file}"/>
+
+                <classpath>
+                    <fileset dir="@{lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <fileset dir="@{jdbc-lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <pathelement location="@{class-dir}"/>
+                </classpath>
+            </mappingtool>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="generate-delta-ddl-file"
+              description="This will install or upgrade the database schema from annotated and enhanced Java classes.">
+
+        <attribute name="class-dir"
+                   description="The class folder where to find .class file annotated and enhanced using OpenJPA"/>
+        <attribute name="persistence-xml-file" description="The full path to the persistence.xml file"/>
+        <attribute name="lib-dir"
+                   description="Folder where to find /openjpa and /jpa folders that contains all the .jar"/>
+        <attribute name="jdbc-lib-dir" description="Full path to folder that contains JDBC drivers jar"
+                   default="@{lib-dir}"/>
+
+        <attribute name="sqlFile"/>
+
+        <sequential>
+            <taskdef name="mappingtool" classname="org.apache.openjpa.jdbc.ant.MappingToolTask">
+                <classpath>
+                    <fileset dir="@{lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <pathelement location="@{class-dir}"/>
+                </classpath>
+            </taskdef>
+
+            <mappingtool sqlFile="@{sqlFile}" readSchema="true" dropTables="true" dropSequences="true"
+                         foreignKeys="true" indexes="true" sequences="true" meta="true">
+                <config propertiesFile="@{persistence-xml-file}"/>
+
+                <classpath>
+                    <fileset dir="@{lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <fileset dir="@{jdbc-lib-dir}">
+                        <include name="**/*.jar"/>
+                    </fileset>
+                    <pathelement location="@{class-dir}"/>
+                </classpath>
+            </mappingtool>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="java-compile">
+        <attribute name="destdir"/>
+        <attribute name="src-path"/>
+        <attribute name="compile-classpath"/>
+        <sequential>
+            <javac classpathref="@{compile-classpath}" destdir="@{destdir}" verbose="no" debug="yes"
+                   optimize="yes" failonerror="yes" encoding="UTF-8"
+                   includeantruntime="false">
+                <src path="@{src-path}"/>
+            </javac>
+            <!--TODO 2020 find the possible value for target and source with Java 14 !. Note that OpenJPA annotation enhancement will not work with Java 14. Maybe with an OpenJPA upgrade ...-->
+        </sequential>
+    </macrodef>
+</project>

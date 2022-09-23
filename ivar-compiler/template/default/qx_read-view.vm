@@ -1,0 +1,189 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#parse("/${compiler.getTarget()}/qx_include-formular-fields.vm")
+#parse("/${compiler.getTarget()}/qx_include-afterinitdata-fields.vm")
+#parse("/${compiler.getTarget()}/qx_include-check-precondition-field.vm")
+###############################
+####### Begin ################# READ = formular (SEARCH = tabular)
+###############################
+// This screen is ${screen.getKeyname()} [${screen.getCrud()}]
+
+qx.Class.define("${screen.getQxClassName()}", {
+    extend : dolab.fwk.ui.AbstractPane,
+
+    construct : function() {
+        this.base(arguments);
+#if(${compiler.isDebug()})
+        dolab.fwk.ui.AbstractPane.DEBUG = true;
+#end
+        this.setInitRequest({svc:"${application.getPackageName()}.${screen.getBusinessObjectNameFirstCapitalized()}Controller", m:"${screen.getPrepareCall().getServerMethodName()}"});
+
+        this.layout = new qx.ui.layout.Grid();
+        this.layout.setSpacing(5);
+        this.layout.setColumnFlex(1, 1);
+        this.layout.setColumnMinWidth(1, ${generator.getLayoutColumnWidth()});
+        this.layout.setColumnWidth(0, ${generator.getLayoutColumnWidth()});
+
+        this.pane = new qx.ui.container.Composite(this.layout);
+        this.pane.seleniumId = "pane";
+##
+## SCREEN REFERENCE
+##
+#parse("/${compiler.getTarget()}/qx_include-screenref-in-screen-constructor.vm")
+##
+## END SCREEN REFERENCE
+##
+    },
+
+    members : {
+
+        layout : null,
+        pane : null,
+
+        getMenuBar : function() {
+            return null;
+        },
+
+        getInitRequest : function() {
+            return null;
+        },
+
+        getIcon : function() {
+            return "targapp read";
+        },
+
+        afterInitData : function(data) {
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+            this.check${field.getKeynameFirstCapitalized()}PreCondition();
+#end#end
+            if (data != null) {
+
+#foreach ( $field in ${screen.getFields()} )
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#generateAfterInitDataForOneField($field "data" "read")
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#end## Keep the blank line just before.
+
+            } //end if (data != null) { 
+        },
+
+        getCaption : function() {
+            return "${screen.getTitle()}";
+        },
+
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+
+        check${field.getKeynameFirstCapitalized()}PreCondition : function() {
+## TODO only dependencies !
+#foreach ($field in ${screen.getFields()})#if ($field.isBuiltIn())
+            var ${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end## end if isBuiltIn TODO other collection and not builtin
+#end## end for each field
+            var result = $field.getCondition();
+            this.debug("check${field.getKeynameFirstCapitalized()}PreCondition : "+result);
+            if (result == true) { // Show
+                var ${field.getKeyname()}LabelElement = this.getWidget('${field.getKeyname()}', 'l');
+                var ${field.getKeyname()}FieldElement = this.getWidget('${field.getKeyname()}', 'w');
+                if (this.pane.indexOf(${field.getKeyname()}LabelElement.w) < 0) {
+                    this.pane.add(${field.getKeyname()}LabelElement.w, ${field.getKeyname()}LabelElement.l);
+                    this.pane.add(${field.getKeyname()}FieldElement.w, ${field.getKeyname()}FieldElement.l);
+                    var length = this.getAllFieldWidgets('${field.getKeyname()}').length;
+                    if (length > 2) {
+                        var currentWidgets = null;
+                        for (var i = 0; i < length; i++) {
+                            currentWidgets = this.getWidget('${field.getKeyname()}', i);
+                            if (currentWidgets != ${field.getKeyname()}LabelElement && currentWidgets != ${field.getKeyname()}FieldElement) {
+                                this.pane.add(currentWidgets.w, currentWidgets.l);
+                            }
+                        }
+                    }
+                } else {
+                    this.debug("${field.getKeyname()} already visible !");
+                }
+            } else { // Hide
+                var ${field.getKeyname()}LabelElement = this.getWidget('${field.getKeyname()}', 'l');
+                var ${field.getKeyname()}FieldElement = this.getWidget('${field.getKeyname()}', 'w');
+                if (this.pane.indexOf(${field.getKeyname()}LabelElement.w) >= 0) {
+                    this.pane.remove(${field.getKeyname()}LabelElement.w);
+                    this.pane.remove(${field.getKeyname()}FieldElement.w);
+                    var length = this.getAllFieldWidgets('${field.getKeyname()}').length;
+                    if (length > 2) {
+                        var currentWidgets = null;
+                        for (var i = 0; i < length; i++) {
+                            currentWidgets = this.getWidget('${field.getKeyname()}', i);
+                            if (currentWidgets != ${field.getKeyname()}LabelElement && currentWidgets != ${field.getKeyname()}FieldElement) {
+                                this.pane.remove(currentWidgets.w);
+                            }
+                        }
+                    }
+                } else {
+                    this.debug("${field.getKeyname()} already hidden !");
+                }
+            }
+        },
+#end#end
+
+        doInitUI : function() {
+            var buttonPane = dolab.fwk.ui.AbstractPane.getNewButtonsPanel(
+                [
+                    {lbl:"Refresh", cde:this.refreshAction, ctx:this, keyLstnr:this.contentPane, key:"Enter", seleniumId:"refreshButton", ico:"refresh"},
+                    {lbl:"Close", cde:this.closeAction, ctx:this, keyLstnr:this.contentPane, key:"Enter", seleniumId:"closeButton", ico:"close"}
+                ]);
+
+            this.contentPane.add(buttonPane, {edge: "south"});
+
+#set($col = 1)
+#set($row = 0)
+#set($colspanfornotcalculated = 2)
+#if($compiler.isDebug())
+#foreach ( $field in ${screen.getFields()} )
+            this.debug("BEFORE Field ${field.getKeyname()} built.");
+#foreach ( $dependency in ${field.getDependencies()} )
+            this.debug("Dependencies for field ${field.getKeyname()} : ${dependency.getKeyname()}");
+#end#end#end
+#foreach ( $field in ${screen.getFields()} )
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#generateFormularForOneField($field $row $col, "read")
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#end## Keep the blank line just before.
+            this.contentPane.add(this.pane, {edge: "center"});
+
+#registerEventForPrecondition(${screen.getFields()})
+
+            if (this.filledFields) {
+                this.afterInitData(this.data);
+            }
+        },
+
+        closeAction : function() {
+            this.closeForEver();
+        },
+        
+        refreshAction : function() {
+            this.send("Refreshing...", this.initRequest, this.afterInitData);
+        },
+        
+        fillFields : function(data) {
+            this.data = data;
+            this.filledFields = true;
+        }
+    }
+});

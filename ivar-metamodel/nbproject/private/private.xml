@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group name="Group 20200616-08:03:05">
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/CRUD.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/Dataset.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/Jump.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/CompileLog.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/IdentifiableObject.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/DatasetData.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/Clonable.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/DuplicateException.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/SpecElement.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/Application.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/MetaObject.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/DuplicateDatasetException.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/ConstraintValue.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/DuplicateDatasetDataException.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/spec/DataSize.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/metamodel/src/ivar/metamodel/CanBeExcluded.java</file>
+        </group>
+        <group name="ivarc group">
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/StepConstraint.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/JavaClassDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/Step.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/ObjectSelfDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/Scenario.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/target/generic/ui/Menu.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/Jump.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/target/generic/ui/Screen.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/QxClasses.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/target/java/JavaFilter.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/Application.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/AbstractClassDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/BooleanClassDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/QxClassDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/InstanceDesc.java</file>
+            <file>file:/Users/jbb/Dev/Projects/ivar/ivar-metamodel/src/ivar/metamodel/spec/selfdesc/EnumeratedClassDesc.java</file>
+        </group>
+        <group/>
+    </open-files>
+</project-private>

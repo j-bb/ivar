@@ -1,0 +1,224 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+##.
+#parse("common/java_general_copyright.vm")
+
+package ${this.getPackageName()}.auth;
+
+import dolab.fwk.FullLogger;
+import dolab.fwk.Logger;
+import dolab.fwk.LoggerDefaultImplementation;
+import dolab.fwk.auth.AbstractAuthenticationServlet;
+import dolab.fwk.auth.LoginToken;
+import dolab.fwk.rpc.ControllerContext;
+import dolab.fwk.util.CollectionFactory;
+import dolab.fwk.util.ServletHelper;
+import dolab.serialization.SerializationException;
+import org.json.JSONException;
+
+import javax.persistence.NonUniqueResultException;
+import javax.persistence.Query;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import ${this.getPackageName()}.AppUser;
+import ${this.getPackageName()}.AppRole;
+
+public final class AuthenticationServlet extends AbstractAuthenticationServlet {
+
+    private String servletName;
+
+    @Override
+    protected void doAfterInit() throws ServletException {
+        new ${this.getPackageName()}.dataconfig.DataInjector();
+    }
+
+    @Override
+    protected final String getApplicationName() {
+        return "${app.getKeyname()}";
+    }
+
+    @Override
+    protected String handleRPC(final HttpServletRequest request, final String requestString) throws ServletException {
+        final FullLogger log = LoggerDefaultImplementation.getInstance();
+        final String clientTraceString = request.getRemoteAddr();
+        log.setClientTraceString(clientTraceString);
+        log.setApplicationKeyname((differentiator != null ? differentiator + "_" : "") + getApplicationName());
+
+        log.beginBlock("[AbstractAuthenticationServlet] " + ServletHelper.getUrl3(request));
+
+        String response = null;
+
+        log.debug("[AbstractAuthenticationServlet] before invalidate session");
+        // remove any previous session
+        invalidateSession(request);
+        log.debug("[AbstractAuthenticationServlet] after invalidate session");
+
+        try {
+            //log.debug("[AbstractAuthenticationServlet] Begin of the try{ before jsonserializer");
+            final Map<String, Object> requestMap = jsonSerializer.unserializeObject(requestString);
+            final Map<String, Object> responseMap = CollectionFactory.newMap();
+
+            // there should be 2 parameters : [ "login", "password" ]
+            final List<String> params = (List<String>) requestMap.get("params");
+            // TODO buffer overflow / take only the first n char to put in login
+            final String login = params.get(0);
+            final String password = params.get(1);
+
+            // check if login/password are valid
+            AuthenticationResult loginResult = null;
+            if (login != null && password != null) {
+                try {
+                    log.debug("[AbstractAuthenticationServlet] before login");
+                    loginResult = login(login, password);
+                    log.debug("[AbstractAuthenticationServlet] after login");
+                } catch (Throwable t) {
+                    invalidateSession(request);
+                    log.error("Unable to login", t, true);
+                    throw new ServletException("Unable to login", t);
+                }
+            }
+
+            log.debug("[AbstractAuthenticationServlet] post login : before fill the session");
+            final Map<String, Object> result = CollectionFactory.newMap();
+
+            if (loginResult != null && loginResult.isLogged()) {
+                final HttpSession session = request.getSession(true);
+                session.setAttribute("logintoken", new LoginToken(login));
+                // interval in seconds
+                session.setMaxInactiveInterval(SESSION_TIMEOUT);
+
+                result.put("roles", loginResult.getRoles());
+                result.put("logged", true);
+
+                try {
+                    final Map<Class, List<String>> wantedFields = CollectionFactory.newMap(0);
+                    final Object serializedUser = javaSerializer.serialize(loginResult.getUser(), null);
+                    result.put("user", serializedUser);
+                } catch (SerializationException e) {
+                    log.error("Error during loginResult.getUser()", e, true);
+                    invalidateSession(request);
+                    throw new ServletException("Error during loginResult.getUser()", e);
+                }
+
+                result.put("composerVersion", loginResult.getComposerVersion());
+            } else {
+                result.put("logged", false);
+            }
+
+            responseMap.put("result", result);
+            responseMap.put("id", requestMap.get("id"));
+            log.debug("[AbstractAuthenticationServlet] post login : after fill the session");
+
+            log.debug("[AbstractAuthenticationServlet] post login : before serialize response map");
+            response = jsonSerializer.serialize(responseMap);
+            log.debug("[AbstractAuthenticationServlet] post login : after serialize response map");
+        } catch (JSONException e) {
+            invalidateSession(request);
+            log.error(e, true);
+            throw new ServletException("Unable to read request", e);
+        } finally {
+            log.endBlock("[AbstractAuthenticationServlet] " + response);
+        }
+
+        return response;
+    }
+
+    protected final AuthenticationResult login(final String login, final String password) {
+        final AuthenticationResult result = new AuthenticationResult();
+        List<AppUser> users = null;
+
+        if (login != null && !login.equals("") && password != null && !password.equals("")) {
+            final ControllerContext cc = new ControllerContext();
+            boolean tooMuchuser = false;
+            cc.beginTransaction();
+            String ql = "SELECT usr FROM AppUser usr WHERE usr.login = :login AND usr.hashedPassword = :password";
+            Query query = cc.createQuery(ql);
+            query.setParameter("login", login);
+            query.setParameter("password", password);
+            List requestResult = query.getResultList();
+            users = (List<AppUser>) requestResult;
+
+            // Bad login: check if user exists. If so, increment bad_logins_count and update last_bad_login
+            if (users.size() == 0) {
+                result.setLogged(false);
+
+                ql = "SELECT usr FROM AppUser usr WHERE usr.login = :login";
+                query = cc.createQuery(ql);
+                query.setParameter("login", login);
+                requestResult = query.getResultList();
+                users = (List<AppUser>) requestResult;
+                if (users.size() == 1) {
+                    final AppUser user = users.get(0);
+                    Integer badLoginsCount = user.getBadLoginsCount();
+                    if (badLoginsCount == null) {
+                        badLoginsCount = 1;
+                    } else {
+                        badLoginsCount++;
+                    }
+                    user.setBadLoginsCount(badLoginsCount);
+                    user.setLastBadLogin(new Date());
+                } else if (users.size() > 1) {
+                    tooMuchuser = true;
+                }
+            }
+            // good login: increment good_logins_count and update last_good_login
+            else if (users.size() == 1) {
+                result.setLogged(true);
+                result.setComposerVersion("${properties.getComposerVersion()}");
+                final AppUser user = users.get(0);
+
+                for (AppRole role : user.getAppRole()) {
+                    result.addRole(role.getName());
+                }
+
+                Integer goodLoginsCount = user.getGoodLoginsCount();
+                if (goodLoginsCount == null) {
+                    goodLoginsCount = 1;
+                } else {
+                    goodLoginsCount++;
+                }
+                user.setGoodLoginsCount(goodLoginsCount);
+                user.setLastGoodLogin(new Date());
+            } else if (users.size() > 1) {
+                tooMuchuser = true;
+            }
+            cc.commitTransaction();
+            if (tooMuchuser) {
+                throw new NonUniqueResultException("There is more than one user with the same login");
+            }
+            if (result.isLogged()) {
+                final AppUser user = users.get(0);
+                result.setUser(user);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public final void destroy() {
+        super.destroy();
+        final FullLogger log = LoggerDefaultImplementation.getInstance().reset(System.out);
+        log.info("Houston, we're in the servlet '" + servletName + "' destroy() method, please wait ...");
+        log.info("OK, Houston, '" + servletName + "' landed. End of the the mission !");
+        log.emptyLine();
+    }
+}

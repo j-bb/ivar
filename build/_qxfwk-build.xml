@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="dwfwk build">
+
+	<target name="_qx-fwk-clean">
+		<stopwatch name="qx-fwk-clean" />
+		<antcall target="_py-exec">
+			<param name="qx-action" value="clean" />
+			<param name="py-exec-directory" value="../qxfwk" />
+		</antcall>
+		<antcall target="_py-exec">
+			<param name="qx-action" value="distclean" />
+			<param name="py-exec-directory" value="../qxfwk" />
+		</antcall>
+                <stopwatch name="qx-fwk-clean" action="total" />
+	</target>
+
+	<target name="_qx-fwk-build">
+		<stopwatch name="qx-fwk-build" />
+		<antcall target="_py-exec">
+			<param name="qx-action" value="build" />
+			<param name="py-exec-directory" value="../qxfwk" />
+		</antcall>
+		<stopwatch name="qx-fwk-build" action="total" />
+	</target>
+
+	<target name="_qx-fwk-source" >
+		<stopwatch name="qx-fwk-source" />
+		<antcall target="_py-exec">
+			<param name="qx-action" value="source" />
+			<param name="py-exec-directory" value="../qxfwk" />
+		</antcall>
+		<stopwatch name="qx-fwk-source" action="total" />
+	</target>
+
+	<target name="_qx-fwk-source-all" >
+		<stopwatch name="qx-fwk-source-all" />
+		<antcall target="_py-exec">
+			<param name="qx-action" value="source-all" />
+			<param name="py-exec-directory" value="../qxfwk" />
+		</antcall>
+		<stopwatch name="qx-fwk-source-all" action="total" />
+	</target>
+</project>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License
+-->
+<project name="Cave a vin" default="all">
+
+    <target name = "all" description="All: build ivarc and compile ivar file." depends="build-ivarc, compile-caveavin"/>
+    
+    <target name = "compile-caveavin" description="Compile caveavin Ivar file">
+        <!--Run ivarc compiler on ivar file-->
+        <ant antfile="../ivarc/build.xml" target="run" useNativeBasedir = "true" inheritAll="true" >
+            <property name="run.class" value="Ivarc"/>
+        </ant>
+    </target>
+    
+    <target name = "build-ivarc" description="Build ivarc">
+        <ant antfile="../ivarc/build.xml" target="build" useNativeBasedir = "true" inheritAll="false"/>
+    </target>
+</project>

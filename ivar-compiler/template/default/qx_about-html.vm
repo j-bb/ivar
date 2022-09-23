@@ -1,0 +1,56 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+<html>
+<head><title>Welcome to ${application.getName()}</title>
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE"/>
+    <META HTTP-EQUIV="Pragma" CONTENT="no-cache"/>
+    <META HTTP-EQUIV="Expires" CONTENT="0"/>
+</head>
+#if (${application.isAbout()})
+${application.getAbout()}
+#else
+<body scroll="no" style="background-color:#F3F3F3; font-family: Arial;" background="/icons/do/background.png">
+<h1 style="text-align: center;"><img src="/icons/do/logo_white.png">&nbsp; <big>POWER !</big><br/></h1>
+<center>
+    <table width="1024" style="text-align: center;" border="1" cellpadding="2" cellspacing="0">
+        <tbody>
+        <tr><i>
+            <td width="512"><h1 style="text-align: center;">With the compiler</h1></td>
+            <td width="512"><h1>By hand</h1></td>
+        </i></tr>
+        <tr>
+            <td width="512" style="text-align: center; font-weight: bold;"><big> 1 Word document for the
+                specification</big></td>
+            <td width="512" style="text-align: center; font-weight: bold;"><big>${applicationMetric.getFileNumber()} files<br/></big></td>
+        </tr>
+        <tr>
+            <td width="512" style="text-align: center; font-weight: bold;"><big> ${applicationMetric.getScenarioNumber()} scenarios, ${applicationMetric.getStepNumber()} steps, ${applicationMetric.getRuleNumber()} rules, ${applicationMetric.getFilterNumber()} filters, ${applicationMetric.getJumpNumber()} jumps</big></td>
+            <td width="512" style="text-align: center; font-weight: bold;"><big> specification Word document + SQL and
+                Ant files, JavaScript and Java Classes.<br/></big></td>
+        </tr>
+        <tr>
+            <td width="512" style="text-align: center; font-weight: bold;"><big>${applicationMetric.getSpecLineNumber()} lines<br/></big></td>
+            <td width="512" style="text-align: center; font-weight: bold;"><big>${applicationMetric.getLineNumber()} lines<br/></big></td>
+        </tr>
+        </tbody>
+    </table>
+    <br/>
+
+    <div style="text-align: center;"><big><big><span style="font-weight: bold;">1 line in Orbiter Engine produce <font
+            color='green'>${applicationMetric.getRatio()}</font> lines</span></big></big><br/></div>
+</center>
+#end
+</html>

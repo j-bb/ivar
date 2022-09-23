@@ -1,0 +1,318 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#parse("/${compiler.getTarget()}/qx_include-formular-fields.vm")
+#parse("/${compiler.getTarget()}/qx_include-afterinitdata-fields.vm")
+#parse("/${compiler.getTarget()}/qx_include-check-precondition-field.vm")
+#parse("/${compiler.getTarget()}/qx_include-filemacros.vm")
+#parse("/${compiler.getTarget()}/qx_include-event-registering-for-computed-field.vm")
+#parse("/${compiler.getTarget()}/qx_include-compute-function.vm")
+###############################
+####### Begin #################
+###############################
+// This screen is ${screen.getKeyname()} [${screen.getCrud()}]
+
+qx.Class.define("${screen.getQxClassName()}", {
+    extend : dolab.fwk.ui.AbstractPane,
+
+    statics : {
+        SERVERCALLS : {
+#foreach($entry in ${screen.getServerCalls().entrySet()})
+            "${entry.getKey()}" : "${entry.getValue().getServerMethodName()}"#if($foreach.hasNext),#end
+
+#end
+        },
+
+        getRequestMethod : function(context, type) {
+            var result = this.SERVERCALLS[(context == null ? "" : context) + type];
+            if (result == null) {
+                result = this.SERVERCALLS[type];
+            }
+            return result;
+        }
+    },
+
+    construct : function(context) {
+        this.base(arguments);
+        this.okButton = null;
+        this.context = context;
+#if(${compiler.isDebug()})
+        dolab.fwk.ui.AbstractPane.DEBUG = true;
+#end
+        this.setInitRequest({svc:"${application.getPackageName()}.${screen.getBusinessObjectNameFirstCapitalized()}Controller", m: this.self(arguments).getRequestMethod(this.context, "prepare")});
+
+        this.layout = new qx.ui.layout.Grid();
+        this.layout.setSpacing(5);
+        this.layout.setColumnFlex(1, 1);
+        this.layout.setColumnMinWidth(1, ${generator.getLayoutColumnWidth()});
+        this.layout.setColumnWidth(0, ${generator.getLayoutColumnWidth()});
+
+        this.pane = new qx.ui.container.Composite(this.layout);
+        this.pane.seleniumId = "pane";
+#if(${screen.hasFileFields()})
+        this.uploadRegistrar = new dolab.contrib.uploadwidget.UploadFormRegistrar();
+#end
+##
+## SCREEN REFERENCE
+##
+#parse("/${compiler.getTarget()}/qx_include-screenref-in-screen-constructor.vm")
+##
+## END SCREEN REFERENCE
+##
+    },
+
+    members : {
+
+        layout : null,
+        pane : null,
+#if(${screen.hasFileFields()})
+        uploadRegistrar : null,
+#end
+
+        getMenuBar : function() {
+            return null;
+        },
+
+        getInitRequest : function() {
+            return null;
+        },
+
+        getIcon : function() {
+            return "targapp update";
+        },
+
+        afterInitData : function(data) {
+            if (data != null) {
+                this.id = data.id;
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+                this.check${field.getKeynameFirstCapitalized()}PreCondition();
+#end#end
+
+#foreach ( $field in ${screen.getFields()} )
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#generateAfterInitDataForOneField($field "data" "update")
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#end## Keep the blank line just before.
+
+            } //end if (data != null) { 
+        },
+
+        getCaption : function() {
+            return "${screen.getTitle()}";
+        },
+
+#foreach ($field in ${screen.getFields()})
+#if ($field.isCondition())
+
+        check${field.getKeynameFirstCapitalized()}PreCondition : function() {
+## TODO only dependencies !
+#foreach ($field in ${screen.getFields()})#if ($field.isBuiltIn())
+            var ${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end## end if isBuiltIn TODO other collection and not builtin
+#end## end for each field
+            var result = $field.getCondition();
+            this.debug("check${field.getKeynameFirstCapitalized()}PreCondition : " + result);
+
+            var ${field.getKeyname()}FieldElement = this.getWidget('${field.getKeyname()}', 'w');
+            var ${field.getKeyname()}LabelElement = this.getWidget('${field.getKeyname()}', 'l');
+            var length = this.getAllFieldWidgets('${field.getKeyname()}').length;
+
+            if (result) { // Show
+                ${field.getKeyname()}FieldElement.w.setVisibility("visible");
+                ${field.getKeyname()}LabelElement.w.setVisibility("visible");
+                this.getWidget("${field.getKeyname()}", 'w').isNullCandidate = false;
+                for (var i = 0; i < length; i++) {
+                    this.getWidget('${field.getKeyname()}', i).w.setVisibility("visible");
+                }
+            } else { // Hide
+                ${field.getKeyname()}FieldElement.w.setVisibility("excluded");
+                ${field.getKeyname()}LabelElement.w.setVisibility("excluded");
+                this.getWidget("${field.getKeyname()}", 'w').isNullCandidate = true;
+                for (var i = 0; i < length; i++) {
+                    this.getWidget('${field.getKeyname()}', i).setVisibility("excluded");
+                }
+            }
+        },
+#end#end
+
+#computeFunction(${screen})
+
+        doInitUI : function() {
+            var buttonPane = dolab.fwk.ui.AbstractPane.getNewButtonsPanel(
+                [
+                    {lbl:"Update", cde:this.updateAction, ctx:this, keyLstnr:this.contentPane, key:"Enter", seleniumId: "updateButton", ico:"update", silencer:this},
+                    {lbl:"Close", cde:this.closeAction, ctx:this, keyLstnr:this.contentPane, key:"Escape", seleniumId: "closeButton", ico:"close"}
+                ]);
+
+            this.okButton = buttonPane.buttons["updateButton"];
+
+            this.contentPane.add(buttonPane, {edge: "south"});
+
+#set($col = 1)
+#set($row = 0)
+#set($colspanfornotcalculated = 2)
+#if($compiler.isDebug())
+#foreach ( $field in ${screen.getFields()} )
+            this.debug("BEFORE Field ${field.getKeyname()} built.");
+#foreach ( $dependency in ${field.getDependencies()} )
+            this.debug("Dependencies for field ${field.getKeyname()} : ${dependency.getKeyname()}");
+#end#end#end
+#foreach ( $field in ${screen.getFields()} )
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#generateFormularForOneField(${field} ${row} ${col}, "update")
+##xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#end## Keep the blank line just before.
+            this.contentPane.add(this.pane, {edge: "center"});
+
+#registerEventForPrecondition(${screen.getFields()})
+
+#eventRegisteringForCoputedField(${screen.getFields()})
+
+            if (this.filledFields) {
+                this.afterInitData(this.data);
+            }
+        },
+
+        closeAction : function() {
+            this.closeForEver();
+        },
+        
+        fillFields : function(data) {
+            this.data = data;
+            this.filledFields = true;
+        },
+        
+        updateCallback : function(data) {
+            return;
+        },
+
+        updateAction : function() {
+## CUT AND PASTE from ok action of create template
+            if (this.checkConstraints()) {
+#beforeOkAction($screen)
+                var _N_${screen.getBusinessObjectName()} = {};
+                _N_${screen.getBusinessObjectName()}.id = this.id;
+
+                if (this.checkMandatory()) {
+#foreach ($field in ${screen.getFields()})
+#if(${field.hasConstraint("hash")})
+#if (${field.isBuiltIn()} && !${field.isCollection()})
+                    if (this._N_${field.getKeyname()}HasNewValue && this._N_${field.getKeyname()}HasNewValue == true) {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = dolab.fwk.helper.StringHelper.SHA1(this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end());
+                    } else {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+                    }
+#else
+                    // Case of HASH field that is not compatible with hash : collection and not build-in are not compatible.
+                    // Field      : ${field.getKeyname()}
+                    // Collection : ${field.isCollection()}
+                    // built-in   : ${field.isBuiltIn()}
+#end
+
+#else## End if HASH constraint
+#if (${field.isBuiltIn()} && !${field.isCollection()})
+
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+#end
+#if (!${field.isBuiltIn()})
+
+                    // Case of not built-in
+                    _N_${screen.getBusinessObjectName()}.${field.getKeyname()} =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}Data#else this._N_${field.getKeyname()}.getSelectedValues()#end;
+                    if (_N_${screen.getBusinessObjectName()}.${field.getKeyname()} != null && _N_${screen.getBusinessObjectName()}.${field.getKeyname()}.length <= 0) {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = null;
+                    }
+#end## end of #if (!${field.isBuiltIn()})
+#if (${field.isCondition()})
+                    if (this.getWidget("${field.getKeyname()}", 'w').isNullCandidate) {
+                        _N_${screen.getBusinessObjectName()}.${field.getKeyname()} = null;
+                    }
+#end
+#end## End if HASH constraint
+#end## End of #foreach ($field in ${screen.getFields()})
+
+                    if (!this.filledFields) {
+                        this.removeNegativeIds();
+                        var that = this;
+                        this.send("Saving new ${screen.getBusinessObjectName()} ...", 
+                            {
+                                svc:"${application.getPackageName()}.${screen.getBusinessObjectNameFirstCapitalized()}Controller", 
+                                m: ${screen.getQxClassName()}.getRequestMethod("", "exec"), 
+                                p:[_N_${screen.getBusinessObjectName()}]},
+                            function(data) {
+                                this.updateCallback(_N_${screen.getBusinessObjectName()});
+                                this.closeForEver();
+                            });
+                    } else {
+                        this.updateCallback(_N_${screen.getBusinessObjectName()});
+                        this.closeForEver();
+                    }
+                } else {
+                    if (this.uploadRegistrar) {
+                        this.uploadRegistrar.recount();
+                    }
+                }
+## End if checkMandatory();
+#afterOkAction($screen)
+            }
+        },
+
+#generateRemoveNegativeIds($screen)
+
+#checkConstraints($screen)
+
+        checkMandatory : function() {
+            var result = true;
+#foreach ($field in ${screen.getFields()})
+#if (!${field.isCalculated()} && ${field.isMandatory()})
+#if (${field.isBuiltIn()} && !${field.isCollection()})
+
+            // Case of built-in and not collection
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Value = this._N_${field.getKeyname()}#if(${field.isDataset()}).getSelectedValues#else.getValue#end();
+            if (${field.getKeyname()}Value == null) {
+                    this.highlightWidget('${field.getKeyname()}', true);
+                    result = false;
+            }
+#end
+#if (!${field.isBuiltIn()} && ${field.isCollection()})
+
+            // Case of not built-in and collection
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Data =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}.getTableModel().getData()#else this._N_${field.getKeyname()}.getSelectedValues()#end;
+            if (${field.getKeyname()}Data == null || ${field.getKeyname()}Data.length == 0) {
+                this.highlightWidget('${field.getKeyname()}', true);
+                result = false;
+            }
+#end
+#if (!${field.isBuiltIn()} && !${field.isCollection()})
+
+            // Case of not built-in and not collection 
+            this.highlightWidget('${field.getKeyname()}', false);
+            var ${field.getKeyname()}Value =#if(!${field.hasSmallSelector()}) this._N_${field.getKeyname()}.getTableModel().getData()#else this._N_${field.getKeyname()}.getSelectedValues()#end;
+            if (${field.getKeyname()}Value == null#if(!${field.hasSmallSelector()}) || ${field.getKeyname()}Value.length <= 0 #end) {
+                this.highlightWidget('${field.getKeyname()}', true);
+                result = false;
+            }
+#end
+#end## End if field.isMandatory
+#end## End of #foreach ($field in ${screen.getFields()})
+            return result;
+        }
+    }
+});

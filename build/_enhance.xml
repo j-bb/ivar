@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="composer enhance" basedir="." default="enhance">
+    <description>
+        Ant build file to enhance at build-time OpenJPa persistent entity classes.
+    </description>
+
+    <import file="../compiler/template/java/ant-build-master.xml" optional="false"/>
+
+    <target name="enhance">
+        <echo message="Enhancing composer ..."/>
+        <enhance persistence-unit="openjpa-buildtime-for-composer" src-dir="src"
+                 jfwk-class-dir="${jfwk.classes.dir}"
+                 class-dir="${classes.dir}"
+                 commons-lib-dir="../lib/commons"
+                 jpa-lib-dir="../lib/jpa"
+                 openjpa-lib-dir="../lib/openjpa"
+                />
+        <echo message="Enhancing composer. Done."/>
+    </target>
+</project>

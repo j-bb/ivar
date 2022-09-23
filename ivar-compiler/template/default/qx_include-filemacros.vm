@@ -1,0 +1,166 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+###############################
+####### Begin #################
+###############################
+##
+###############################
+####### Begin macros ##########
+###############################
+###############################
+#macro(fileRequest $id)
+#requestObjectForUploadedFile($id)
+                        var callback = function(result) {
+                            if (result != null) {
+                                window.open("files/uploads/" + result.fileName + "?key=" + result.key, "_blank");
+                            }
+                        }
+                        this.send("Requesting uploaded file...", request, callback);
+#end##end macro fileRequest
+##
+#macro(imageRequest $id $imgWidget)
+#requestObjectForUploadedFile($id)
+                        var widget = ${imgWidget};
+                        var callback = function(result) {
+                            if (result != null) {
+                                widget.setSource("files/uploads/" + result.fileName + "?key=" + result.key);
+                            } else {
+                                widget.setSource(null);
+                            }
+                        };
+
+                        that.send("Requesting uploaded file...", request, callback);
+#end##end macro imageRequest
+##
+#macro(requestObjectForUploadedFile $id)
+                        var request = {
+                            svc : "dolab.fwk.files.download.FileRequestController",
+                            m : "requestUploadedFile",
+                            p : [$id]
+                        };
+#end##end macro requestObjectForUploadedFile
+##
+#macro(beforeOkAction $screen)
+#if(${screen.hasFileFields()})
+            var newListener = this.uploadRegistrar.addListenerOnce("allComplete", function() {
+#end
+#end##end macro beforeOkAction
+##
+#macro(afterOkAction $screen)
+#if(${screen.hasFileFields()})
+            }, this);
+            this.uploadRegistrar.sendAll(newListener);
+#end
+#end##end macro afterOkAction
+##
+#macro(setWidgetData $data $screenField $crud)
+                this._N_${screenField.getKeyname()}.setId(${data}.${screenField.getDataKeyname()});
+                if (${data}.${screenField.getDataKeyname()}FileIndex != null) {
+                    var fileData = ${data}.${screenField.getDataKeyname()}FileIndex;
+                    var fileSize = dolab.fwk.helper.StringHelper.printableFileSize(fileData.fileSize);
+                    var msg = "Name: " + fileData.fileName + "<br />Size: " + fileSize + "<br />Upload date: " + dolab.fwk.helper.StringHelper.formatDate(fileData.uploadDate);
+#if (${screenField.isImage()})
+                    msg = msg + "<br />Image dimensions : " + fileData.width + "x" + fileData.height;
+#end
+                    var tooltip = new qx.ui.tooltip.ToolTip(msg);
+                    tooltip.setRich(true);
+                    this._N_${screenField.getKeyname()}.setToolTip(tooltip);
+#if ($crud.equals("update"))
+#if(${screenField.isImage()})
+                    this._N_${screenField.getKeyname()}Image.setToolTip(tooltip);
+#end
+                    this._N_${screenField.getKeyname()}.setName(fileData.fileName);
+#end
+#if (${screenField.isImage()})
+#if($crud.equals("update"))
+#set($keyname="this._N_${screenField.getKeyname()}Image")
+#else
+#set($keyname="this._N_${screenField.getKeyname()}")
+#end
+                    ${keyname}.setScale(true);
+                    var dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(fileData.width, fileData.height, ${generator.getMaxImageSizeFormular()});
+                    ${keyname}.setMaxHeight(dimensions.height);
+                    ${keyname}.setMaxWidth(dimensions.width);
+#end
+                }#if (${screenField.isImage()}) else {
+                    ${keyname}.setMaxHeight(${generator.getMaxImageSizeFormular()});
+                    ${keyname}.setMaxWidth(${generator.getMaxImageSizeFormular()});
+                    ${keyname}.setScale(true);
+                }
+#end
+
+#end##end macro setWidgetData
+##
+#macro(addButtonToMenu $menu $label $btn)
+                                $btn = new qx.ui.menu.Button($label);
+                                ${btn}.setEnabled(false);
+                                ${menu}.add($btn);
+#end
+##
+#macro(fileCellEvents $columnId $table $fieldDataKey $objectData $isCollection)
+            ${table}.addListener("cellContextmenu",
+                function (e) {
+                    if (this.contextMenu) {
+                        if (e.getColumn() == ${columnId}) {
+                            this.contextMenu.removeAll();
+                            var data = null;
+                            var rowId = ${table}TableModel.getValue(0, e.getRow());
+#if($isCollection)
+                            for (var i = 0; i < ${objectData}.length; i++) {
+                                if (rowId == ${objectData}[i].id) {
+                                    data = ${objectData}[i];
+                                    break;
+                                }
+                            }
+#else
+                            data = ${objectData};
+#end
+                            if (data != null) {
+                                if (data.${fieldDataKey}FileIndex != null) {
+                                    var fileData = data.${fieldDataKey}FileIndex;
+                                    var fileSize = dolab.fwk.helper.StringHelper.printableFileSize(fileData.fileSize);
+                                    var btn = null;
+                                    var msg = null;
+#addButtonToMenu("this.contextMenu" "'Name: ' + fileData.fileName" "btn")
+#addButtonToMenu("this.contextMenu" "'Size: ' + fileSize" "btn")
+#addButtonToMenu("this.contextMenu" "'Upload date: ' + dolab.fwk.helper.StringHelper.formatDate(fileData.uploadDate)" "btn")
+                                }
+                            }
+                        }
+                    }
+                }, this);
+            ${table}.addListener("cellClick",
+                function (e) {
+                    if (e.getColumn() == ${columnId} && e.isLeftPressed()) {
+                        var data = null;
+                        var rowId = ${table}TableModel.getValue(0, e.getRow());
+#if($isCollection)
+                        for (var i = 0; i < ${objectData}.length; i++) {
+                            if (rowId == ${objectData}[i].id) {
+                                data = ${objectData}[i];
+                                break;
+                            }
+                        }
+#else
+                        data = ${objectData};
+#end
+                        if (data != null && data.${fieldDataKey} != null) {
+#fileRequest("data.${fieldDataKey}")
+                        }
+                    }
+                }, this);
+#end##end macro fileCellEvents

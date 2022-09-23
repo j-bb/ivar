@@ -1,0 +1,81 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+##.
+#parse("common/java_general_copyright.vm")
+
+package ${this.getPackageName()};
+
+import dolab.fwk.Logger;
+import dolab.fwk.rpc.ControllerContext;
+
+import javax.persistence.Query;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.util.List;
+
+public class UpdateAppUserPreferenceController implements Remote {
+
+    public AppUser updatePreference(final ControllerContext cc, final String login, final List<AppUserPreference> preference) throws RemoteException {
+        final Logger log = cc.getLogger();
+        log.beginBlock("UpdateAppUserPreferenceController.updatePreference(login =" + login + ")");
+
+//        cc.addField(AppUser.class, "login");
+//        cc.addField(AppUser.class, "preference");
+//        cc.addField(AppUserPreference.class, "id");
+//        cc.addField(AppUserPreference.class, "pref_name");
+//        cc.addField(AppUserPreference.class, "pref_value");
+//        cc.computeFetchPlan();
+
+        AppUser result = null;
+        try {
+            final String ql = "SELECT appUser FROM AppUser appUser WHERE appUser.login = :login";
+            log.info("Querying the database using " + ql);
+            final Query query = cc.createQuery(ql);
+            query.setParameter("login", login);
+
+            final List requestResult = query.getResultList();
+            final List<AppUser> appUsers = (List<AppUser>) requestResult;
+
+            if (appUsers.size() == 1) {
+                AppUser user = appUsers.get(0);
+                cc.beginTransaction();
+                for (AppUserPreference pref : preference) {
+                    cc.merge(pref);
+                }
+                log.debug("Transaction started");
+                log.debug("Merging user preference ...");
+                user.setPreference(preference);
+                log.debug("Merging user preference. Done.");
+                log.debug("Commiting ...");
+                //cc.persist(user);
+                cc.commitTransaction();
+                log.debug("Commiting. Done.");
+                result = user;
+            } else {
+                throw new RemoteException("There is none or more than one user with login " + login);
+            }
+        } catch (RemoteException e) {
+            cc.rollbackTransaction();
+            throw e;
+        } catch (Throwable t) {
+            cc.rollbackTransaction();
+            throw new RemoteException(t.getMessage(), t);
+        }
+        log.endBlock("UpdateAppUserPreferenceController.updatePreference(login =" + login + ")");
+        return result;
+    }
+}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+	This build file contain all generic task and element.
+	This file must be included.
+-->
+
+<project name="build-master">
+
+	<!-- 
+		ant-contrib that allow a useful stopwatch task.
+	-->
+	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+		<classpath>
+			<fileset dir="../lib/ant">
+				<include name="**/*.jar" />
+			</fileset>
+		</classpath>
+	</taskdef>
+
+	<!-- 
+		Execute python ${py-exec} command in the ${py-exec-directory}
+	-->
+	<target name="_py-exec">
+		<fail unless="qx-action" message="[_py-exec] qx-action property not set." />
+		<fail unless="py-exec-directory" message="[_py-exec] py-exec-directory property not set." />
+
+		<condition property="py-exec" value="generate.py ${qx-action}">
+			<or>
+				<equals arg1="${debug}" arg2="false" />
+				<not>
+					<isset property="debug" />
+				</not>
+			</or>
+		</condition>
+		<condition property="py-exec" value="generate.py --config-verbose --verbose ${qx-action}">
+			<equals arg1="${debug}" arg2="true" />
+		</condition>
+		<echo message="[_py-exec] ${py-exec-directory}/python ${py-exec}" />
+		<exec executable="python" failonerror="yes" dir="${py-exec-directory}">
+			<arg line="${py-exec}" />
+		</exec>
+	</target>
+
+</project>

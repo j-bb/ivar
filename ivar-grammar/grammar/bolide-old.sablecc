@@ -1,0 +1,234 @@
+Package bolide.grammar;
+
+Helpers
+    unicode_input_character = [0..0xffff];
+
+    ht  = 0x0009;
+    lf  = 0x000a;
+    ff  = 0x000c;
+    cr  = 0x000d;
+    sp  = ' ';
+
+    line_terminator = lf | cr | cr lf; 
+    input_character = [unicode_input_character - [cr + lf]];
+
+    not_star =    [input_character - '*'] | line_terminator;
+    not_star_not_slash = [input_character - ['*' + '/']] | line_terminator;
+
+    lowercase = ['a' .. 'z'];
+    uppercase = ['A' .. 'Z'];
+    digit = ['0' .. '9'];
+    
+    letter = lowercase | uppercase | '-' | '_';
+    letter_or_digit = letter | digit;
+
+    escape_sequence  = '\b' | '\t' | '\n' | '\f' | '\r' | '\"' | '\' ''' | '\\';
+    string_character = [input_character - ['"' + '\']] | escape_sequence;
+    rule_character   = [input_character - '�'];
+
+/*******************************************************************
+ * Tokens                                                          *
+ *******************************************************************/
+Tokens
+
+    white_space = (' ' | sp | ht | ff | line_terminator)*;
+
+    traditional_comment = '/*' not_star+ '*'+ (not_star_not_slash not_star* '*'+)* '/';
+    documentation_comment =    '/**' '*'* (not_star_not_slash not_star* '*'+)* '/';
+    end_of_line_comment = '//' input_character* line_terminator?;
+
+    open_brace = '{';
+    close_brace = '}';
+    semicolon = ';';
+    rule_ref = '@';
+
+//
+// BOLIDE keyword section
+//
+   	domain = 'domain';
+	usecase = 'usecase';
+	create = 'create';
+	search = 'search';
+	update = 'update';
+	delete = 'delete';
+	
+	internal = 'internal';
+	
+	calculated = 'calculated';
+	read_only = 'read-only';
+	not_used = 'not-used';
+	
+	search_with           = 'search-with';
+	create_with           = 'create-with';
+	search_or_create_with = 'search-or-create-with';
+	search_rule           = 'search-rule';
+
+//
+// Cardinality section
+//
+	cardinality = '(' digit+ '..' ('*' | digit+) ')';
+
+//
+// BOLIDE type section
+//
+	boolean_type = 'boolean';
+	text_type = 'text' ('('digit*')')?;
+	multitext_type = 'multitext' ( '(' (digit*) | (digit*',' digit*) ')' )?;	
+	formatedtext_type  = 'formatedtext' ( '(' (digit*) | (digit*',' digit*) ')' )?; // html ?
+	number_type = 'number' ('('digit*')')?;
+	integer_type = 'integer' ('('digit*')')?;
+	real_type = 'real' ('('digit*',' digit*')')?;
+	percentile_type = 'percentile' ('('digit*',' digit*')')?;
+	// add a format string
+	time_type = 'time';
+	// add a format string
+	date_type = 'date' ('('letter*')')?;
+	// add a format string
+	datetime_type = 'datetime';
+	// Currency ?
+	amount_type = 'amount';
+	// Size for blob ?
+	blob_type = 'blob';
+
+
+//
+// Name section
+//
+    dot = '.';
+    comma = ',';
+	identifier = letter letter_or_digit*;
+	//Upper_identifier = uppercase letter_or_digit*;
+	string = '"'(string_character)*'"';
+	/*
+	string_list = (strings)*;
+	strings = ',' string;
+	*/
+	rule_content = letter letter_or_digit*;
+
+/*******************************************************************
+ * Ignored Tokens                                                  *
+ *******************************************************************/
+Ignored Tokens
+
+  white_space, 
+  traditional_comment,
+  end_of_line_comment;
+
+
+
+/*******************************************************************
+ * Productions                                                     *
+ *******************************************************************/
+
+Productions
+
+	/********************************************************************
+	Root
+	********************************************************************/
+	bolide = domain_header use_case*;
+	domain_header = documentation_comment? domain name semicolon;
+
+	use_case = documentation_comment? usecase_declaration;
+	usecase_declaration = 	{create_usecase} create_usecase | 
+                                {search_usecase} search_usecase | 
+                                {update_usecase} update_usecase | 
+                                {delete_usecase} delete_usecase;
+
+	create_usecase = usecase usecase_name create entity_name open_brace create_usecase_body close_brace;
+	search_usecase = usecase usecase_name search entity_name open_brace search_usecase_body close_brace;
+	update_usecase = usecase usecase_name update entity_name open_brace update_usecase_body close_brace;
+	delete_usecase = usecase usecase_name delete entity_name open_brace delete_usecase_body close_brace;
+
+	usecase_name = usecase_short_name? usecase_business_name;
+	usecase_short_name = simple_name;
+	usecase_business_name = string;
+	entity_name = simple_name;
+
+//
+// Create usecase section
+//
+	create_usecase_body = create_business_item*;
+	create_business_item = 	{simple_business_item} simple_business_item |
+					        {calculated_simple_business_item} calculated_simple_business_item |
+			                {internal_business_item} internal_business_item |
+		   	                {reference_business_item} reference_business_item |
+		   	                {calculated_reference_business_item} calculated_reference_business_item;
+   	                
+	simple_business_item = cardinality simple_business_type business_item_name semicolon;
+	calculated_simple_business_item = cardinality calculated simple_business_type business_item_name rule_ref rule_name semicolon;
+	rule_name = name;
+	//rule = rule_ref rule_content;
+	
+	internal_business_item = cardinality internal complex_business_type business_item_name open_brace create_business_item* close_brace;	
+
+	calculated_reference_business_item = cardinality calculated complex_business_type business_item_name open_brace business_item* close_brace search_rule rule_ref rule_name semicolon;
+	reference_business_item = cardinality complex_business_type business_item_name open_brace business_item* close_brace reference_type;
+	reference_type = 	{search_reference} search_reference |
+						{create_reference} create_reference |
+						{search_or_create_reference} search_or_create_reference;
+						
+	search_reference = search_with reference_destination;
+	reference_destination = {reference_reference} reference_reference | {reference_value} reference_value;
+	reference_reference = string_list semicolon;
+	reference_value = open_brace business_item* close_brace;
+	
+	// LAST LAST : le create-with ne peut se contenter de reference_value avec des business_item car il lui faut du (a..b) integer id ... et pas seulement du id;
+	// Answer : the create-with work with a list of create story.
+	create_reference =  create_with reference_reference;
+	
+	search_or_create_reference = search_or_create_with reference_destination;
+	
+	simple_business_type = 	{boolean_type} boolean_type |
+					{text_type} text_type |
+					{multitext_type} multitext_type |
+					{formatedtext_type} formatedtext_type |
+					{number_type} number_type |
+					{integer_type} integer_type |
+					{real_type} real_type |
+					{percentile_type} percentile_type |
+					{time_type} time_type |
+					{date_type} date_type |
+					{datetime_type} datetime_type |
+					{amount_type} amount_type |
+					{blob_type} blob_type;
+	complex_business_type = name; // Allow dot to reach element from other book.
+	
+//
+// Search usecase section
+//
+	search_usecase_body = business_item*;
+	
+//
+// Update usecase section
+//
+	update_usecase_body = business_item*;
+	
+//
+// Delete usecase section
+//
+	delete_usecase_body = business_item*;
+	
+//
+// Business_item section common to search, update and delete.
+//
+	business_item = business_item_modifier? business_item_name semicolon;
+	business_item_modifier = {calculated} calculated | {read_only} read_only | {not_used} not_used;
+	business_item_name = simple_name;
+
+//// What is not-used ??
+//// Does calculated make sense for  delete story ??
+
+//
+// Names section
+//
+	name = 	{simple_name} simple_name |
+			{qualified_name} qualified_name;
+	
+	simple_name = identifier;
+	
+	qualified_name = name dot identifier;
+	
+	string_list = one_string_list multiple_string_list*;
+				  
+	one_string_list = string;
+	multiple_string_list = comma string;

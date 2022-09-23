@@ -1,0 +1,115 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#macro(computeFunction $screen)
+## This loop is for the method that will compute calculated field
+#foreach ($field in ${screen.getFields()})
+#if (${field.hasSum()})
+#foreach ($sumDesc in ${field.getSums()})
+        ${sumDesc.getFunctionName()} : function() {
+            var result = 0;
+            var collection = this._N_${sumDesc.getScreenField()}Data;
+
+            if (collection != null) {
+                var len = collection.length;
+                for (var i = 0; i < len; i++) {
+                    if (i in collection) {
+                        result += collection[i].${sumDesc.getField()};
+                    }
+                }
+            }
+            this.debug("${sumDesc.getFunctionName()} : " + result);
+            return result;
+        },
+
+#end
+#end
+#if (${field.isCalculated()})
+        compute${field.getKeynameFirstCapitalized()} : function() {
+#foreach ($onefield in ${screen.getFields()})
+#foreach ($dependency in ${onefield.getDependencies()})
+#if (${dependency.getKeyname().equals(${field.getKeyname()})})## Keep the blank line after.
+
+            // ${onefield.getKeyname()} is a needed dependency to compute ${field.getKeyname()}.
+#if (${onefield.isCalculated()})## Manage dependencies on calculated field !!!
+            // TODO This is the case of a calculated field that depends on another calculated field.
+            try {
+                var ${onefield.getKeyname()} = this.compute${onefield.getKeynameFirstCapitalized()}(); // Note: call to this.compute${onefield.getKeyname()}(oneDataLine); won't be enought due to potential circular dependencies (loop of the death).
+            } catch (err) {
+                throw new Error("[${screen.getKeyname()}] Dependency not satisfied : ${onefield.getKeyname()} failed when call compute${onefield.getKeynameFirstCapitalized()}() : " + err);
+            }
+
+#else
+##Beware of name, if it correspond to js keyword !!!
+##Solution : during compilation, add some prefix, so for example, any step with a name xfunction will become depFunction
+#if (!${onefield.isCollection()} && ${onefield.isBuiltIn()})
+            var ${onefield.getKeyname()} = this._N_${onefield.getKeyname()}#if(${onefield.isDataset()}).getSelectedValues#else.getValue#end();
+#elseif(${onefield.isCollection()} && ${onefield.isBuiltIn()})
+            var ${onefield.getKeyname()} = [];
+            var ${onefield.getKeyname()}Length = this._N_${field.getKeyname()}TableModel.getRowCount();
+            for (var i = 0; i < ${onefield.getKeyname()}Length; i++) {
+                ${onefield.getKeyname()}.push(this._N_${field.getKeyname()}TableModel.getValue(0, i));
+            }
+#elseif(${onefield.isCollection()} && !${onefield.isBuiltIn()})
+
+            // Case of not built-in collection
+            var ${onefield.getKeyname()} = [];
+
+
+#elseif(!${onefield.isCollection()} && !${onefield.isBuiltIn()})
+
+            // Case of not built-in not collection
+##            //var ${onefield.getKeyname()} = {};
+##            //var ${onefield.getKeyname()} = this._N_${onefield.getKeyname()}Data
+            var ${onefield.getKeyname()} = null;
+
+#if(!${onefield.hasSmallSelector()})
+            // case of without a smallselector
+
+            if (this._N_${onefield.getKeyname()}.getTableModel().getData().length > 0) {
+                ${onefield.getKeyname()} = this._N_${onefield.getKeyname()}Data;
+            }
+#else
+            // case of a smallselector
+            ${onefield.getKeyname()} = this._N_${field.getKeyname()}.getSelectedValues();
+#end## end !hasSmallSelector
+            if (${onefield.getKeyname()} == null) {
+                throw new Error("[${screen.getKeyname()}] Dependency not satisfied : ${onefield.getKeyname()} is null.");
+            }
+##            this.debug(">>>>>>>>>>>>");
+##            qx.dev.Debug.debugObject(${onefield.getKeyname()});
+
+            
+#end
+#if(${compiler.isDebug()} && ${onefield.isBuiltIn()})
+
+            this.debug("compute${field.getKeynameFirstCapitalized()}() : ${onefield.getKeyname()} = " + ${onefield.getKeyname()});
+#end
+#end## end if build-isCalculated
+#end
+#end
+#end## end of 2 loop on all fields and dependency. Keep the blank line just after.
+
+##            var result = ${field.getCalculated()};
+            var result = ${field.getRule()}
+#if($compiler.isDebug())
+            this.debug("compute${field.getKeynameFirstCapitalized()}() : RESULT = " + result);
+#end
+            return result;
+        },
+
+#end#end
+#end

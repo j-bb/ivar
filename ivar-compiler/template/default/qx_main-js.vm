@@ -1,0 +1,202 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+qx.Class.define("${application.getPackageName()}.${application.getKeynameFirstCapitalized()}", {
+
+    extend : dolab.fwk.ui.AbstractApplication,
+    type : "singleton",
+    include : [dolab.fwk.rpc.RpcMixin],
+
+    members :    {
+        doGetApplicationName : function() {
+            return "${application.getName()}";
+        },
+
+        doGetApplicationKeyName : function() {
+            return "${application.getKeyname()}";
+        },
+
+        doGetPreferenceManager : function() {
+            return ${application.getPackageName()}.PreferenceManager.getInstance();
+        },
+
+        doAfterInit : function() {
+            this.doAboutMenuFunction();
+        },
+
+        doAddMenu : function(menu) {
+            var createImg = dolab.fwk.ui.IconManager.getIcon("targapp create", "icon");
+            var deleteImg = dolab.fwk.ui.IconManager.getIcon("targapp bug", "icon");
+            var searchImg = dolab.fwk.ui.IconManager.getIcon("targapp search", "icon");
+            var updateImg = dolab.fwk.ui.IconManager.getIcon("targapp bug", "icon");
+            var wrongMenuImg = dolab.fwk.ui.IconManager.getIcon("targapp bug", "icon");
+#foreach($menu in ${application.getRootMenu().getMenus()})
+#menuItem(${menu})
+#end
+
+        },
+
+#menuAction(${application.getRootMenu()})
+
+        doAboutMenuFunction : function() {
+            this.openWin(new ${application.getPackageName()}.About());
+        },
+
+        doGetMenuIcon : function() {
+            return "small_logo";
+        },
+
+        doGetMenuIconFunction : function() {
+            return this.newLandingZonePaneAction();
+        },
+
+        getCompileTimeTrace : function() {
+            return ["Compilation time trace is ${generator.getCompileTimeTrace()}", "${generator.getApplicationTrace()}"];
+        },
+
+        doAddApplicationMenu : function(menu) {
+        },
+
+        doGetNewLandingZonePane : function() {
+## Keep the following comments until futher notice :
+##            return new ${application.getKeyname()}.ui.LandingZonePane(this);
+        }
+    }
+});
+###
+### MACRO SECTION
+###
+#macro(menuAction $menu)
+#if($menu.isLeaf())
+        ${menu.getJsUniqueKey()}Action : function() {
+            try {
+#if(${menu.isFusion()})
+                var request = {
+                    svc : "${application.getPackageName()}.${menu.getScreenBusinessObject()}Controller",
+                    m : "${menu.getPrepareCallName()}",
+                    p : [null]
+                };
+
+                this.send("Requesting fusion...", request,
+                    function(result) {
+                        window.open("files/fusion/" + result.fileName + "?key=" + result.key, "_blank");
+                    });
+#else
+                this.openWin(new ${menu.getWindowClassName()}());
+#end
+            } catch (err) {
+                this.error("Error in ${menu.getJsUniqueKey()}Action ['${menu.getText()}'] :");
+                this.error(err);
+            }
+        },
+
+#end
+#foreach($submenu in ${menu.getMenus()})
+#menuAction(${submenu})
+#end#end
+##
+##
+##
+#macro(menuItem $menu)
+#if(${menu.isRoot()})
+## Menu isRoot, so we need to create a menu
+            //
+            // Begin root menu ${menu.getJsUniqueKey()}
+            //
+            // Menu jsUniqueKey = ${menu.getJsUniqueKey()}, text = "${menu.getText()}"
+#if(!${menu.isLeaf()})
+## make sure not to create the menu isLeaf
+            var ${menu.getJsUniqueKey()}Menu = new qx.ui.menu.Menu();
+#if(${menu.hasRoles()})
+            if (#if(${menu.isRolesAllowed()})!#end dolab.fwk.auth.AuthManager.getInstance().hasRoles([#set ($first = "true")#set ($empty = "true")#foreach ($role in ${menu.getRoles()})#if ($first == "true")#set($first = "false")#set($empty = "false")#else ,#end"${role}"#end])) {
+#end
+                var ${menu.getJsUniqueKey()}ButtonMenu = new qx.ui.toolbar.MenuButton("${menu.getText()}");
+                ${menu.getJsUniqueKey()}ButtonMenu.seleniumId = "${menu.getJsUniqueKey()}MenuEntry";
+                ${menu.getJsUniqueKey()}ButtonMenu.setAppearance("toolbar-dolab-menubutton");
+                ${menu.getJsUniqueKey()}Menu.setAppearance("menu-dolab");
+                ${menu.getJsUniqueKey()}ButtonMenu.setMenu(${menu.getJsUniqueKey()}Menu);
+                menu.add(${menu.getJsUniqueKey()}ButtonMenu);
+#if(${menu.hasRoles()})
+            }
+#end
+#end##end if !isLeaf()
+#if(${menu.isLeaf()})
+#if(${menu.hasRoles()})
+            if (#if(!${menu.isRolesAllowed()})!#end dolab.fwk.auth.AuthManager.getInstance().hasRoles([#set ($first = "true")#set ($empty = "true")#foreach ($role in ${menu.getRoles()})#if ($first == "true")#set($first = "false")#set($empty = "false")#else ,#end"${role}"#end])) {
+#end
+## Menu isLeaf, so we need to add a listener for action
+            // menu ${menu.getJsUniqueKey()} as an action attached 
+            var ${menu.getJsUniqueKey()}MenuButton = new qx.ui.toolbar.Button("${menu.getText()}", #if (${menu.isCreate()})createImg#elseif (${menu.isDelete()})deleteImg#elseif (${menu.isSearch()} || ${menu.isDSearch()})searchImg#elseif (${menu.isUpdate()})updateImg#else wrongMenuImg#end);
+            ${menu.getJsUniqueKey()}MenuButton.seleniumId = "${menu.getJsUniqueKey()}MenuButton";
+            ${menu.getJsUniqueKey()}MenuButton.setAppearance("menu-dolab-button");
+            ${menu.getJsUniqueKey()}MenuButton.addListener("execute",
+                function(e) {
+                    this.${menu.getJsUniqueKey()}Action();
+                }, this);
+            menu.add(${menu.getJsUniqueKey()}MenuButton);
+#if(${menu.hasRoles()})
+            }
+#end
+
+#end##end if isLeaf()
+#else##else if isRoot, so now, its not root :
+                // Menu jsUniqueKey = ${menu.getJsUniqueKey()}, text = "${menu.getText()}"
+#if(${menu.isLeaf()})
+#if(${menu.noParent()})
+                //${menu.getJsUniqueKey()}MenuButton as a child of menu
+#else
+                //${menu.getJsUniqueKey()}MenuButton as a child of ${menu.getParent().getJsUniqueKey()}Menu
+#end##end noParent
+#if(${menu.hasRoles()})
+            if (#if(!${menu.isRolesAllowed()})!#end dolab.fwk.auth.AuthManager.getInstance().hasRoles([#set ($first = "true")#set ($empty = "true")#foreach ($role in ${menu.getRoles()})#if ($first == "true")#set($first = "false")#set($empty = "false")#else ,#end"${role}"#end])) {
+#end
+                var ${menu.getJsUniqueKey()}MenuButton = new qx.ui.menu.Button("${menu.getText()}", #if (${menu.isCreate()})createImg#elseif (${menu.isDelete()})deleteImg#elseif (${menu.isSearch()} || ${menu.isDSearch()})searchImg#elseif (${menu.isUpdate()})updateImg#else wrongMenuImg#end);
+                ${menu.getJsUniqueKey()}MenuButton.seleniumId = "${menu.getJsUniqueKey()}MenuButton";
+                ${menu.getJsUniqueKey()}MenuButton.setAppearance("menu-dolab-button");
+#if(${menu.noParent()})
+                menu.add(${menu.getJsUniqueKey()}MenuButton);
+#else
+                ${menu.getParent().getJsUniqueKey()}Menu.add(${menu.getJsUniqueKey()}MenuButton);
+#end##end noParent
+                ${menu.getJsUniqueKey()}MenuButton.addListener("execute",
+                    function(e) {
+                        this.${menu.getJsUniqueKey()}Action();
+                    }, this);
+#if(${menu.hasRoles()})
+            }
+#end
+
+#else##else if isLeaf()
+                //${menu.getJsUniqueKey()}MenuButton as a child of ${menu.getParent().getJsUniqueKey()}Menu
+                var ${menu.getJsUniqueKey()}Menu = new qx.ui.menu.Menu();
+                ${menu.getJsUniqueKey()}Menu.setAppearance("menu-dolab");
+                var ${menu.getJsUniqueKey()}MenuButton = new qx.ui.menu.Button("${menu.getText()}", null, null, ${menu.getJsUniqueKey()}Menu);
+                ${menu.getJsUniqueKey()}MenuButton.seleniumId = "${menu.getJsUniqueKey()}MenuButton";
+                ${menu.getJsUniqueKey()}MenuButton.setAppearance("menu-dolab-button");
+                ${menu.getParent().getJsUniqueKey()}Menu.add(${menu.getJsUniqueKey()}MenuButton);
+
+
+#end##end if isLeaf
+#end##end isRoot
+#foreach($subMenu in ${menu.getMenus()})
+#menuItem(${subMenu})
+#end
+#if(${menu.isRoot()})
+            //
+            // End root menu ${menu.getJsUniqueKey()}
+            //
+#end
+#end

@@ -1,0 +1,246 @@
+##
+##   Copyright (c) 2004-2020, Jean-Baptiste BRIAUD. All Rights Reserved.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License
+##
+#parse("common/common.vm")
+#parse("/${compiler.getTarget()}/qx_include-filemacros.vm")
+###############################
+####### Begin #################
+###############################
+
+###############################
+####### Begin macros ##########
+###############################
+###############################
+####### generateAfterInitDataForOneField
+#######
+####### !! Warning !! this macro can be called with ScreenField or businessObjectAttribute instances !
+###############################
+#macro(generateAfterInitDataForOneField $screenField $data $crud)
+#if(${crud.equals("read")} || ${crud.equals("search")})
+#set($readonly = true)
+#else
+#set($readonly = false)
+#end
+            // Generated from macro generateAfterInitDataForOneField (ScreenField) CLASS IS ${screenField.getClass().getName()}
+            if (${data}.${screenField.getDataKeyname()} != null) {
+#if(${screenField.isScreenReference()})
+##
+## SCREEN REFERENCE
+##
+
+                // ${screenField.getKeyname()}. This is a Screen reference to ${screenField.getReferencedScreen().getQxClassName()}
+###if(${screenField.isCollection()})
+##            // This screen reference is a collection -> a table is needed
+#if(!${screenField.hasSmallSelector()})
+#afterInitData_qxtableForReferenceScreen(${screenField})
+#else
+#afterInitData_smallSelector(${screenField})
+#end
+###else
+##            // This screen reference is NOT a collection -> no table but a form is needed.
+###foreach ($referenceField in ${screenField.getReferencedScreen().getFields()})
+###set($datatopass = "${data}.${screenField.getKeyname()}")
+###generateAfterInitDataForOneField(${referenceField} ${datatopass} ${crud})
+###end## End foreach
+###end## End if cardinality
+
+##
+## END SCREEN REFERENCE
+##
+#elseif (${screenField.isDataset()})
+                if (${data}.${screenField.getDataKeyname()} != null) {
+#afterInitData_qxsimplefield(${screenField})
+#if(${readonly} == true)
+                    this._N_${screenField.getKeyname()}.setEnabled(false);
+#end
+                }
+#elseif (${screenField.isText()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isPassword()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isBoolean()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isNumber()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isMultitext()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isFormatedtext()})
+#elseif (${screenField.isInteger()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isReal()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isAmount()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isPercentile()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isDate()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isTime()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isDateTime()})
+#afterInitData_qxsimplefield(${screenField})
+#elseif (${screenField.isFile()})
+#setWidgetData($data $screenField $crud)
+#elseif (!${screenField.isBuiltIn()})
+#if(${screenField.isCollection()})
+#afterInitData_qxtable (${screenField})
+#else
+#afterInitData_qxtable (${screenField})
+#end## End of #IF isCollection()
+#else## Case of unknown type :
+                this.debug("Unknown type for field keyname = '${screenField.getKeyname()}', field name =  '${screenField.getName()}',  field type is '${screenField.getType()}', \n${screenField.getDebugInfo()}");
+                this.error("Unknown type for field keyname = '${screenField.getKeyname()}', field name =  '${screenField.getName()}',  field type is '${screenField.getType()}', \n${screenField.getDebugInfo()}");
+
+#end## End of #if screen reference
+            }
+#if(${compiler.isDebug()})
+            this.debug("AFTER Field ${screenField.getKeyname()} built.");
+#end
+#end## End of macro
+###############################
+####### afterInitData_qxsimplefield
+###############################
+## 2020 added default values because it now fails but the parameters are not used ?!
+#macro (afterInitData_qxsimplefield $field="field" $widget="widget")
+
+                // ${screenField.getKeyname()}
+                this.debug("!!!! ${screenField.getKeyname()} BEFORE setValue(${data}.${screenField.getDataKeyname()}) = " + ${data}.${screenField.getDataKeyname()});
+                this._N_${screenField.getKeyname()}.setValue(${data}.${screenField.getDataKeyname()});
+                this.debug("!!!! ${screenField.getKeyname()} AFTER setValue(${data}.${screenField.getDataKeyname()})");
+#end
+###############################
+####### afterInitData_qxtable
+###############################
+#macro (afterInitData_qxtable $screenField)
+                this.debug("!!!! afterInitData_qxtable BEGIN for ${screenField.getKeyname()}");
+##qx.dev.Debug.debugObject(${data}.${screenField.getKeyname()});
+                var localData = [];
+                var tmp = [];
+                var d = null;
+#foreach ( $field in ${screen.getFields()} )
+#if(${field.hasConstraint("dateFormat")})
+#set($format = ${field.getEscapedConstraint("dateFormat")})
+                var ${field.getKeyname()}Format = new qx.util.format.DateFormat("$format");
+#end
+#end
+
+#if (${screenField.isCollection()})
+                this.debug("${screenField.getKeyname()} is a collection");
+                for (var i = 0, ${screenField.getKeyname()}Length = ${data}.${screenField.getDataKeyname()}.length; i  < ${screenField.getKeyname()}Length; i++) {
+##                for (var i in ${data}.${screenField.getKeyname()}) {
+##this.debug("<<<>>><<<>>><< "+i);
+                    d = ${data}.${screenField.getDataKeyname()}[i].id;
+                    if (d == null) {d = "";}
+                    tmp.push(d);
+#if(${screenField.isScreenReference()})
+#foreach ($referenceField in ${screenField.getReferencedScreen().getFields()})
+                    d = ${data}.${screenField.getDataKeyname()}[i].${referenceField.getDataKeyname()};
+                    if (d == null) {d = "";}
+                    if (d && typeof(d) == "object" && !d.getDate) {
+                        tmp.push("{object}");
+                    } else {
+#if(${referenceField.isFile()})
+#if(${referenceField.isImage()})
+                        if (${data}.${screenField.getDataKeyname()}[i].${referenceField.getDataKeyname()}FileIndex != null) {
+                            var width = ${data}.${screenField.getDataKeyname()}[i].${referenceField.getDataKeyname()}FileIndex.width;
+                            var height = ${data}.${screenField.getDataKeyname()}[i].${referenceField.getDataKeyname()}FileIndex.height;
+                            var dimensions = dolab.fwk.helper.ImageHelper.getScaledDimensions(width, height, ${generator.getMaxImageSizeTabular()});
+                        } else {
+                            var dimensions = { width : ${generator.getMaxImageSizeTablular()}, height : ${generator.getMaxImageSizeTabular()} };
+                        }
+                        tmp.push('<img src="files/x?key=' + d + '&type=uploaded" width="' + dimensions.width + '" height="' + dimensions.height + '"/>');
+#else##if isImage
+                        tmp.push(dolab.fwk.ui.IconManager.getIcon("download", "minitool"));
+#end##end if isImage
+#elseif(${field.hasConstraint("dateFormat")})##if isFile
+                        tmp.push(${field.getKeyname()}Format.format(d));
+#else##if isFile
+                        tmp.push(d);
+#end##end if isFile
+                    }
+#end
+#else
+#foreach ($fieldAttribute in ${screenField.getAttribute().getType().getBusinessObject().getAttributes()})
+                    d = ${data}.${screenField.getDataKeyname()}[i].${fieldAttribute.getDataKeyname()};
+                    if (d == null) {d = "";}
+                    if (d && typeof(d) == "object" && !d.getDate) {
+                        tmp.push("Object");
+                    } else {
+                        tmp.push(d);
+                    }
+#end
+#end
+                    localData.push(tmp);
+                    tmp = [];
+                }## end for
+
+#else
+                this.debug("${screenField.getKeyname()} is a NOT collection");
+                d = ${data}.${screenField.getDataKeyname()}.id;
+                if (d == null) {d = "";}
+                tmp.push(d);
+                this.debug("id pushed " + d);
+#if(${screenField.isScreenReference()})
+#foreach ($referenceField in ${screenField.getReferencedScreen().getFields()})
+                d = ${data}.${screenField.getDataKeyname()}.${referenceField.getDataKeyname()};
+                if (d == null) {d = "";}
+                if (d && typeof(d) == "object" && !d.getDate) {
+                    tmp.push("Object");
+                } else {
+                    tmp.push(d);
+                }
+                this.debug("${referenceField.getKeyname()} pushed " + d);
+#end
+#else
+#foreach ($fieldAttribute in ${screenField.getAttribute().getType().getBusinessObject().getAttributes()})
+                d = ${data}.${screenField.getDataKeyname()}.${fieldAttribute.getDataKeyname()};
+                if (d == null) {d = "";}
+                if (d && typeof(d) == "object" && !d.getDate) {
+                    tmp.push("Object");
+                } else {
+                    tmp.push(d);
+                }
+                this.debug("${fieldAttribute.getKeyname()} pushed " + d);
+#end
+#end
+                localData.push(tmp);
+                tmp = [];
+
+#end
+##                    if (${data}[i] == null || typeof ${data}[i] == "undefined" || typeof ${data}[i] == "function") {
+##this.debug("continue : "+typeof ${data}[i]);
+##                        continue;
+##                    }
+
+                this._N_${screenField.getKeyname()}TableModel.setData(localData);
+                this._N_${screenField.getKeyname()}Data = ${data}.${screenField.getDataKeyname()};
+
+                this.debug("!!!! afterInitData_qxtable END for ${screenField.getKeyname()}");
+
+#end## End macro qxtable
+###############################
+####### afterInitData_qxtableForReferenceScreen
+###############################
+#macro (afterInitData_qxtableForReferenceScreen $screenField)
+                // This section is generated from afterInitData_qxtableForReferenceScreen Velocity macro.
+#afterInitData_qxtable(${screenField})
+#end## End macro afterInitData_qxtableForReferenceScreen
+###############################
+### afterInitData_smallSelector
+###############################
+#macro(afterInitData_smallSelector $screenField)
+                this._N_${screenField.getKeyname()}Data = ${data}.${screenField.getDataKeyname()};
+                this._N_${screenField.getKeyname()}.setSelected(#if(!${screenField.isCollection()})[#end this._N_${screenField.getKeyname()}Data #if(!${screenField.isCollection()})]#end);
+#end
