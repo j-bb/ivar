@@ -14,15 +14,15 @@
 [//]: # (   limitations under the License)
 [//]: # ()
 
-**Ivar project.**  
-A use case oriented language.
+<h1 align="center"><b>Ivar</b></h1>
+<div align="center">A use case oriented language.</div>
 
 # What is Ivar?
-A language, a compiler inspired from Ivar Jacobson Use Case concept that ends in UML.  
-This is not a generator because it is not needed to modify the outcome of the generator.  
-We make a point of honnor to ensure ivar compiler outcome are humman readable.  
-So, yes, it is possible to modify such Ivar output files, but it is not advised because on the next compilation, modifications will be lost.
-Also, there is no need to modify files to make the targapp work. It is deployable rigth baked by the compiler.  
+Ivar is a language, a compiler, inspired from Ivar Jacobson **Use Case** concept that ended in UML.  
+Ivar is not a generator because it is not needed to modify the outputs procuced by the compiler, unlike a generator.  
+It is not needed, but still possible. That's why we make a point to ensure ivar compiler outcomes are humman readable.  
+So, yes, it is possible to modify such Ivar output files, but it is not advised because on the next compilation, modifications will be lost.  
+Also, there is no need to modify files to make the *targapp* work. The resulting web application, the *targapp*, is deployable rigth baked by the compiler.  
 The compiler produce the Ant file that handle full Targapp lifecycle, including Tomcat deployment.
 # Why a new language?
 As a developer, I barely seen IT approach applyied to IT itself. Ivar is a try to do this with a new language that produce what is currently written by hand for a web application that manipulate "business data": HTML or GUI, a business logic server and a relational database.
