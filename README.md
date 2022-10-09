@@ -29,10 +29,12 @@ As a developer, I barely seen IT approach applyied to IT itself. Ivar is a try t
 
 Language approach is very powerful: a text input file and something that can run as an output.
 # Maturity
-Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).
+Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).  
 TODO:
 - Ivar Grammar is incomplete and is closer to a test than a complete language.
-- Qooxdoo template use very old version of Qooxdoo and need to be upgraded.
+- Qooxdoo template use very old version of Qooxdoo and need to be upgraded.  
+
+Note that the compiler is far more advanced than grammar. Yeah ... I know ... strange but true due to the specific history of thie compiler ;-)
 
 Once that will be done, one can start usinbg Ivar to develop a CRUD business data web application.
 # Definitions
