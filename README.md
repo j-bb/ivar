@@ -29,10 +29,12 @@ As a developer, I barely seen IT approach applyied to IT itself. Ivar is a try t
 
 Language approach is very powerful: a text input file and something that can run as an output.
 # Maturity
-Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).
+Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).  
 TODO:
 - Ivar Grammar is incomplete and is closer to a test than a complete language.
-- Qooxdoo template use very old version of Qooxdoo and need to be upgraded.
+- Qooxdoo template use very old version of Qooxdoo and need to be upgraded.  
+
+Note that the compiler is far more advanced than grammar. Yeah ... I know ... strange but true due to the specific history of thie compiler ;-)
 
 Once that will be done, one can start usinbg Ivar to develop a CRUD business data web application.
 # Definitions
@@ -77,21 +79,21 @@ The global ivar root folder contains projects. Each one has dependencies : with 
 Definition: 
 - _leaf project_ doesn't depends on other projects.
 
-## ivar-grammar
+## /ivar-grammar
 This project is a leaf and ha no IDE dependencies.
 This project contain the SableCC definition of Ivar language and the SableCC generated files for lexer, parser and AST visitor.
 SableCC is needed to compale the Ivar grammar into lexer, parser and visitor.
 This is launched by an Ant script that need SableCC lib.
-## helper
+## /helper
 This project is a leaf. It contains utility classes, helper.
 Most methods should be static.
 ### Dependencies
 - project
 - lib
   - Apache commons
-## common
+## /common
 This project is shared by ivar compiler and targapp runtime.
-## ivar-metamodel
+## /ivar-metamodel
 This project is the Java code for all Ivar compiler concepts and phases.
 - Classes from phase 1: Application, Scenario, Step, etc.
 - Classes from the generic phase: Screen, ScreenField, BusinessObject, etc.
@@ -100,7 +102,7 @@ This project is the Java code for all Ivar compiler concepts and phases.
 - project
   - helper
   - common
-## jfwk
+## /jfwk
 This project is the home for targapp @compiletime and @runtime classes.
 It is not used by the ivar compiler.
 ### Dependencies
@@ -116,7 +118,7 @@ It is not used by the ivar compiler.
   - Apache OpenJPA
   - Apache Commons
   - Apache Velocity
-## ivar-compiler
+## /ivar-compiler
 ### Dependencies
 - project
   - helper
@@ -129,21 +131,21 @@ It is not used by the ivar compiler.
   - Apache Commons
   - SableCC
   - scriptonite
-## lib-rt-json
+## /lib-rt-json
 Source code from json.org
 No dependencies.
-## lib-rt-serialization
+## /lib-rt-serialization
 Source code to serialize from Java instance to JSON and from JSON to Java instance.
 ### Dependencies
 - project
   - lib-rt-json
-## lib-rt-rpc
+## /lib-rt-rpc
 A global RPC (Remote ProcedureCall) based on JSON over HTTP.
 ### Dependencies
 - project
   - lib-rt-json
   - lib-rt-serialization
-## qxfwj
+## /qxfwj
 This project contains the runtime Javascript framework for targapp.
 It is not used by ivar compiler.
 ### Dependencies
