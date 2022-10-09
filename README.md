@@ -25,7 +25,7 @@ So, yes, it is possible to modify such Ivar output files, but it is not advised 
 Also, there is no need to modify files to make the *targapp* work. The resulting web application, the *targapp*, is deployable rigth baked by the compiler.  
 The compiler produce the Ant file that handle full Targapp lifecycle, including Tomcat deployment.  
 
-Ivar grammar is all focus on use case description. There is no action like loop, algorythm, etc. Thoses actions are described using Javascript section (like lambda) inside Ivar.  
+Ivar grammar is focused on use case description. There is no action verb like loop, algorythm, etc. Thoses actions are described using Javascript section (like lambda) inside Ivar.  
 
 # Why a new language?
 As a developer, I barely seen IT approach applyied to IT itself. Ivar is a try to do this with a new language that produce what is currently written by hand for a web application that manipulate "business data": HTML or GUI, a business logic server and a relational database.
