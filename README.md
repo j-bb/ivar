@@ -23,13 +23,24 @@ Ivar is not a generator because it is not needed to modify the outputs procuced 
 It is not needed, but still possible. That's why we make a point to ensure ivar compiler outcomes are humman readable.  
 So, yes, it is possible to modify such Ivar output files, but it is not advised because on the next compilation, modifications will be lost.  
 Also, there is no need to modify files to make the *targapp* work. The resulting web application, the *targapp*, is deployable rigth baked by the compiler.  
-The compiler produce the Ant file that handle full Targapp lifecycle, including Tomcat deployment.
+The compiler produce the Ant file that handle full Targapp lifecycle, including Tomcat deployment.  
+
+Ivar grammar is focused on use case description. There is no action verb like loop, algorythm, etc. Thoses actions are described using Javascript section (like lambda) inside Ivar.  
+
 # Why a new language?
 As a developer, I barely seen IT approach applyied to IT itself. Ivar is a try to do this with a new language that produce what is currently written by hand for a web application that manipulate "business data": HTML or GUI, a business logic server and a relational database.
 
 Language approach is very powerful: a text input file and something that can run as an output.
-# Maturity
+
+# How to use the compiler
+Pending doc.  
+
+# Current status and maturity
 Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).  
+Done:
+- provide a compiling version based on Netbeans IDE.
+- add grammar tests and focus on text input file with an Ivar grammar.
+
 TODO:
 - Ivar Grammar is incomplete and is closer to a test than a complete language.
 - Qooxdoo template use very old version of Qooxdoo and need to be upgraded.  
@@ -37,10 +48,12 @@ TODO:
 Note that the compiler is far more advanced than grammar. Yeah ... I know ... strange but true due to the specific history of the compiler ;-)
 
 Once that will be done, one can start usinbg Ivar to develop a CRUD business data web application.
+
 # Definitions
 - _targapp_ is an application defined in Ivar language and produce by ivarc, the Ivar language compiler.
 - _targapp arch_ is the set of tech, the software architecture, that underlie targapp. For now, there is only one possible targapp arch.
 - _ivarc_ is the command line compiler. It take an ivar file and produce an application.
+
 # Targapp arch
 This paragraph will introduce, without details, the software architecture that underlie a targapp.
 Currently, there is one possible targapp arch, but ivar had been designed with template to paremetrize the generation so it can evolve.
@@ -52,15 +65,13 @@ There is no name for this only possible targapp software architecture.
 - JSON to Java instance and, back, Java instance to JSON serialization
 - OpenJPA persistence based on JDBC compatible relational database (MySQL, PostgreSQL, SQLServer, ...)
 
-# Versioning
-https://semver.org/
-
 # Contributing. Can I help?
 Sure you can!  
 Don't be shy. You can contribute to a programming language, even if you start programming right now. You will learn as all other developers did before you.  
 Currently, there would a lot of possibilities to help:
 - upgrade Qooxdoo template.
 - new template for other tech to target.
+
 # Ivar compiler high level software architecture
 Ivar compiler is developed in Java.
 The front-end is a command line compiler, ivarc.
@@ -71,6 +82,16 @@ This ivar metamodel tree instance is about the same level of abstraction than th
 Then, an application compiler is launched and, from this ivar metamodel tree, will build another tree of technical generic concepts like Screen, BusinessObject, etc.
 Then, in a next phase, the compiler will build another tree of more low level technical concepts that totally depends on the targapp arch, there we'll find QooxdooScreen, JavaBusinessObject, etc.
 Then, this latest tree if browse by generators to produce Qooxdoo javascript files and JPA annotated Java files for example.
+
+# How to start from source code
+This source code is ready to use with [Netbeans](https://netbeans.apache.org)  
+So, here is the steps to follow:
+- clone the repo (see Github doc)
+- open all projects from within Netbeans
+- right-click on ivar-compiler project and choose build.
+
+# Versioning
+Semantic versionning: https://semver.org/
 
 # Ivar source code organization
 The purpose of this paragraph is to document the organization of the Ivar project Java source code.
