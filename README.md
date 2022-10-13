@@ -20,7 +20,7 @@
 # What is Ivar?
 Ivar is a language, a compiler, inspired from Ivar Jacobson **Use Case** concept that ended in UML.  
 Ivar is not a generator because it is not needed to modify the outputs procuced by the compiler, unlike a generator.  
-It is not needed, but still possible. That's why we make a point to ensure ivar compiler outcomes are humman readable.  
+It is not needed, but still possible. That's why we make a point to ensure ivar compiler outcomes are humman readable.
 So, yes, it is possible to modify such Ivar output files, but it is not advised because on the next compilation, modifications will be lost.  
 Also, there is no need to modify files to make the *targapp* work. The resulting web application, the *targapp*, is deployable rigth baked by the compiler.  
 The compiler produce the Ant file that handle full Targapp lifecycle, including Tomcat deployment.  
@@ -38,11 +38,11 @@ Pending doc.
 # Current status and maturity
 Current Ivar iteration is not mature to start using Ivar language right now (Sept 2022).  
 Done:
-- provide a compiling version based on Netbeans IDE.
+- provide a version based on Netbeans IDE that compile without compile errors, dependency error, etc.
 - add grammar tests and focus on text input file with an Ivar grammar.
 
 TODO:
-- Ivar Grammar is incomplete and is closer to a test than a complete language.
+- Ivar Grammar is incomplete and is closer to a test than a complete language. Add keyword in the grammar corresponding to what the compiler is already able to do.
 - Qooxdoo template use very old version of Qooxdoo and need to be upgraded.  
 
 Note that the compiler is far more advanced than grammar. Yeah ... I know ... strange but true due to the specific history of the compiler ;-)
