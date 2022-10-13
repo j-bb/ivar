@@ -176,7 +176,8 @@ It is not used by ivar compiler.
 ### Dependencies
 It depends on Qooxdoo framework.
 
-# intellectual roadmap
+
+# Intellectual roadmap
 In other words, this list if a biggest, most unprobable todo list of Ivar
 - Add other _system_ as possible _actor_ : produce callable API
 - Add more atmic data type so it should be possible to describe more _system_. As an example, geographical map could be a new kind of new data type like music, video, etc.
