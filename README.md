@@ -50,8 +50,8 @@ Note that the compiler is far more advanced than grammar. Yeah ... I know ... st
 Once that will be done, one can start usinbg Ivar to develop a CRUD business data web application.
 
 # Definitions
-- _Use case_ is a consistent and complete interaction from an _Actor_ with the _System_. It is a business transaction, technically, it will generate a database transaction.
-- _Step_ is part of a use case, an atomic interation from an _Actor_ with the _System_.
+- _Use case_ is a consistent and complete interaction from an _Actor_ with the _System_. It is a business transaction. On a technical side, it will generate a database transaction.
+- _Step_ is part of a use case, an atomic unitary interation from an _Actor_ with the _System_. On a UML diagram, we would draw a _use case_ composed of 1 or seferal _steps_. Interaction direction: sometime the _step_ interaction is from _actor_ to the _system_, sometime it is the other way around, the _step_ interaction is from the _system_ to an _actor_.
 - _Actor_ for now, only end user is possible Actor in Ivar. It is in the intellectual roadmap to allow other systems to be actors and use an API.
 - _System_ the thing you are trying hard to define, develop, deploy and use :-)
 - _targapp_ is an application defined in Ivar language and produce by ivarc, the Ivar language compiler.
